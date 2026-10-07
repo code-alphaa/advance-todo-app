@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light Theme based on Image 1: #FFFAF3, #FFF2DB, #FFE5BF, #F62440 */
+  --bg-app: #FFFAF3;
+  --bg-surface: #FFF2DB;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FFFDF9;
+  --border-color: #FFE5BF;
+  --border-hover: #F8D5A3;
+  --accent-color: #F62440;
+  --accent-hover: #DF1934;
+  --accent-subtle: #FEE8EC;
+  --text-main: #2A1F1D;
+  --text-secondary: #745F56;
+  --text-muted: #9E8980;
+  --text-on-accent: #FFFFFF;
+  --column-bg: #FFF2DB;
+  --column-header: #FFE7C4;
+  --chip-bg: #FFF8EE;
+  --shadow-card: 0 1px 3px rgba(110, 60, 20, 0.08), 0 2px 6px rgba(110, 60, 20, 0.04);
+}
+
+:root.dark,
+html.dark {
+  /* Dark Theme from user palette: #37353E, #44444E, #715A5A, #D3DAD9 */
+  --bg-app: #37353E;
+  --bg-surface: #44444E;
+  --bg-card: #37353E;
+  --bg-card-hover: #403E49;
+  --border-color: #715A5A;
+  --border-hover: #8D7171;
+  --accent-color: #D3DAD9;
+  --accent-hover: #E3E8E7;
+  --accent-subtle: #4D4548;
+  --text-main: #D3DAD9;
+  --text-secondary: #BAC2C1;
+  --text-muted: #8E8A91;
+  --text-on-accent: #232228;
+  --column-bg: #44444E;
+  --column-header: #3D3D47;
+  --chip-bg: #37353E;
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars for clean Jira board look */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
+}
+
+/* Jira style card dragging indicator */
+.dragging-card {
+  opacity: 0.85;
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
+  cursor: grabbing !important;
+}
+
+.drop-target-active {
+  outline: 2px dashed var(--accent-color);
+  background-color: var(--accent-subtle) !important;
+}
+
+/* Ensure buttons with accent background have proper contrast */
+.bg-accent-cta {
+  background-color: var(--accent-color) !important;
+  color: var(--text-on-accent) !important;
+}
