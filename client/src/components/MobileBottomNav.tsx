@@ -1,9 +1,9 @@
 import React from 'react';
-import { Calendar as DayIcon, CalendarDays, Kanban, Plus } from 'lucide-react';
+import { Calendar as DayIcon, CalendarDays, Kanban, Calendar as CalIcon, Plus } from 'lucide-react';
 
 interface MobileBottomNavProps {
-  currentView: 'day' | 'weekly' | 'kanban';
-  onViewChange: (view: 'day' | 'weekly' | 'kanban') => void;
+  currentView: 'day' | 'weekly' | 'kanban' | 'calendar';
+  onViewChange: (view: 'day' | 'weekly' | 'kanban' | 'calendar') => void;
   onOpenCreate: () => void;
 }
 
@@ -13,11 +13,11 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   onOpenCreate,
 }) => {
   return (
-    <nav className="fixed bottom-3 inset-x-0 mx-auto z-40 w-fit max-w-[94%] bg-[var(--bg-card)]/95 backdrop-blur-md border border-[var(--border-color)] px-2 py-1 flex items-center gap-1 md:hidden shadow-xl rounded-full transition-all">
+    <nav className="fixed bottom-3 inset-x-0 mx-auto z-40 w-fit max-w-[96%] bg-[var(--bg-card)]/95 backdrop-blur-md border border-[var(--border-color)] px-1.5 py-1 flex items-center gap-1 md:hidden shadow-xl rounded-full transition-all">
       {/* Today / Day View */}
       <button
         onClick={() => onViewChange('day')}
-        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-full text-xs transition-all ${
+        className={`flex items-center gap-1 py-1.5 px-2.5 rounded-full text-xs transition-all ${
           currentView === 'day'
             ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] font-bold shadow-xs'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-main)] hover:bg-[var(--column-bg)] font-medium'
@@ -30,7 +30,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* 7 Days / Weekly View */}
       <button
         onClick={() => onViewChange('weekly')}
-        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-full text-xs transition-all ${
+        className={`flex items-center gap-1 py-1.5 px-2.5 rounded-full text-xs transition-all ${
           currentView === 'weekly'
             ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] font-bold shadow-xs'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-main)] hover:bg-[var(--column-bg)] font-medium'
@@ -43,7 +43,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       {/* Kanban View */}
       <button
         onClick={() => onViewChange('kanban')}
-        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-full text-xs transition-all ${
+        className={`flex items-center gap-1 py-1.5 px-2.5 rounded-full text-xs transition-all ${
           currentView === 'kanban'
             ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] font-bold shadow-xs'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-main)] hover:bg-[var(--column-bg)] font-medium'
@@ -51,6 +51,19 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       >
         <Kanban className="w-3.5 h-3.5" />
         <span className="text-[11px]">Kanban</span>
+      </button>
+
+      {/* Calendar View */}
+      <button
+        onClick={() => onViewChange('calendar')}
+        className={`flex items-center gap-1 py-1.5 px-2.5 rounded-full text-xs transition-all ${
+          currentView === 'calendar'
+            ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] font-bold shadow-xs'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-main)] hover:bg-[var(--column-bg)] font-medium'
+        }`}
+      >
+        <CalIcon className="w-3.5 h-3.5" />
+        <span className="text-[11px]">Cal</span>
       </button>
 
       {/* Aligned Create Action Button */}

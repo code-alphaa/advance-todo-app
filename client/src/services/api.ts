@@ -1,6 +1,7 @@
-import { ITask, MetaStats, TaskStatus } from '../types';
+import { ITask, IEvent, MetaStats, TaskStatus } from '../types';
 
 const API_BASE = '/api/tasks';
+const EVENTS_API_BASE = '/api/events';
 
 export const api = {
   async getTasks(params?: {
@@ -111,5 +112,56 @@ export const api = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete task');
+  },
+
+  // Calendar Event Methods
+  async getEvents(params?: { startDate?: string; endDate?: string; date?: string }): Promise<IEvent[]> {
+    const query = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val) query.append(key, val);
+      });
+    }
+    const res = await fetch(`${EVENTS_API_BASE}?${query.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch events');
+    return res.json();
+  },
+
+  async createEvent(data: Partial<IEvent>): Promise<IEvent> {
+    const res = await fetch(EVENTS_API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to create event');
+    }
+    return res.json();
+  },
+
+  async updateEvent(id: string, updates: Partial<IEvent>): Promise<IEvent> {
+    const res = await fetch(`${EVENTS_API_BASE}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update event');
+    return res.json();
+  },
+
+  async markEventNotified(id: string): Promise<IEvent> {
+    const res = await fetch(`${EVENTS_API_BASE}/${id}/notified`, {
+      method: 'PATCH',
+    });
+    if (!res.ok) throw new Error('Failed to mark event notified');
+    return res.json();
+  },
+
+  async deleteEvent(id: string): Promise<void> {
+    const res = await fetch(`${EVENTS_API_BASE}/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete event');
   },
 };

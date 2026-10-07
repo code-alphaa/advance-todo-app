@@ -38,6 +38,30 @@ export interface ITask {
   updatedAt: string;
 }
 
+export interface IEvent {
+  _id: string;
+  title: string;
+  description?: string;
+  eventDate: string; // 'YYYY-MM-DD'
+  startTime: string; // 'HH:mm', e.g. '09:00'
+  endTime?: string; // 'HH:mm', e.g. '10:00'
+  color?: string;
+  location?: string;
+  reminderMinutes: number; // e.g. 0, 5, 10, 15, 30, 60, 1440
+  isNotified: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  eventId?: string;
+  read: boolean;
+}
+
 export interface DayInfo {
   name: string; // e.g. "Monday"
   shortName: string; // e.g. "Mon"

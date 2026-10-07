@@ -8,6 +8,7 @@ import {
   MenuItem,
   Button,
 } from '@mui/material';
+import { useScrollLock } from '../utils/scrollLock';
 import { TaskStatus, TaskPriority, TaskType, DayInfo, ITask } from '../types';
 
 interface CreateTaskModalProps {
@@ -38,6 +39,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [labelsInput, setLabelsInput] = useState('Frontend, Sprint');
   const [estimatedHours, setEstimatedHours] = useState(2);
 
+  useScrollLock(isOpen);
+
   useEffect(() => {
     if (isOpen) {
       setTitle('');
@@ -46,6 +49,20 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       setPriority('MEDIUM');
       setType('task');
       setAssignedDate(defaultDate || todayStr);
+
+      const prevBody = document.body.style.overflow;
+      const prevHtml = document.documentElement.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+      document.documentElement.classList.add('modal-open');
+
+      return () => {
+        document.body.style.overflow = prevBody;
+        document.documentElement.style.overflow = prevHtml;
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
+      };
     }
   }, [isOpen, defaultDate, defaultStatus, todayStr]);
 
@@ -76,9 +93,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in overscroll-contain"
+      onClick={onClose}
+      onWheel={(e) => {
+        if (e.target === e.currentTarget) e.preventDefault();
+      }}
+      onTouchMove={(e) => {
+        if (e.target === e.currentTarget) e.preventDefault();
+      }}
+    >
       <div
-        className="w-full max-w-xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col"
+        className="w-full max-w-xl bg-[var(--bg-card)] border border-[var(--border-color)] rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col overscroll-contain"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -98,7 +124,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 overscroll-contain">
           {/* Issue Type & Priority (Material UI Selects) */}
           <div className="grid grid-cols-2 gap-3">
             <FormControl fullWidth size="small">
@@ -124,46 +150,45 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as TaskPriority)}
               >
-                <MenuItem value="URGENT">🔥 Urgent</MenuItem>
-                <MenuItem value="HIGH">▲ High</MenuItem>
-                <MenuItem value="MEDIUM">═ Medium</MenuItem>
-                <MenuItem value="LOW">▼ Low</MenuItem>
+                <MenuItem value="LOW">↓ Low</MenuItem>
+                <MenuItem value="MEDIUM">→ Medium</MenuItem>
+                <MenuItem value="HIGH">↑ High</MenuItem>
+                <MenuItem value="URGENT">▲ Urgent</MenuItem>
               </Select>
             </FormControl>
           </div>
 
           {/* Title (Material UI TextField) */}
           <TextField
-            fullWidth
-            required
             autoFocus
+            required
+            fullWidth
             size="small"
-            label="Summary / Title"
-            placeholder="e.g., Implement drag and drop reordering"
+            label="Task Summary / Title"
+            placeholder="e.g. Implement user authentication flow"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          {/* Description (Material UI Multiline) */}
+          {/* Description (Material UI TextField) */}
           <TextField
             fullWidth
             multiline
             rows={3}
             size="small"
-            label="Description"
-            placeholder="Provide context, acceptance criteria or steps..."
+            label="Description / Acceptance Criteria"
+            placeholder="Add detailed acceptance criteria or context..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          {/* Day of the Week Picker (Requirement 2 & 3 & 4) */}
-          <div className="bg-[var(--column-bg)] p-3.5 rounded-2xl border border-[var(--border-color)]">
-            <label className="block text-xs font-bold uppercase text-[var(--text-main)] tracking-wider mb-2 flex items-center gap-1.5">
+          {/* Assign Date Grid */}
+          <div>
+            <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-              Schedule for Day of the Week
+              <span>Sprint Day Assignment</span>
             </label>
-
-            <div className="grid grid-cols-7 gap-1 mb-2.5">
+            <div className="grid grid-cols-7 gap-1.5 mb-2">
               {weekDays.map((d) => (
                 <button
                   key={d.dateString}

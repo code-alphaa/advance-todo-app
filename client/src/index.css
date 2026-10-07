@@ -45,6 +45,7 @@ html.dark {
   --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
+html,
 body {
   background-color: var(--bg-app);
   color: var(--text-main);
@@ -55,26 +56,54 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.2s ease, color 0.2s ease;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
-/* Custom scrollbars for clean Jira board look */
+/* Disable background scroll across all popups and modals */
+body.modal-open,
+html.modal-open {
+  overflow: hidden !important;
+  overscroll-behavior: contain !important;
+  touch-action: none !important;
+  height: 100% !important;
+}
+
+/* Ensure modal overlays and containers contain their scrolling */
+.modal-overlay,
+.modal-container,
+.MuiDialog-root,
+.MuiDialog-container,
+.MuiDialog-paper,
+.MuiPopover-root,
+.MuiPopover-paper {
+  overscroll-behavior: contain !important;
+}
+
+/* Hide scrollbars globally across all elements while keeping full scrollability */
+html,
+body,
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+*::-webkit-scrollbar,
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  display: none !important; /* Chrome, Safari, WebKit */
+  width: 0 !important;
+  height: 0 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+/* Scrollbar none utility */
+.scrollbar-none {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-color);
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 /* Jira style card dragging indicator */
@@ -88,10 +117,4 @@ body {
 .drop-target-active {
   outline: 2px dashed var(--accent-color);
   background-color: var(--accent-subtle) !important;
-}
-
-/* Ensure buttons with accent background have proper contrast */
-.bg-accent-cta {
-  background-color: var(--accent-color) !important;
-  color: var(--text-on-accent) !important;
 }

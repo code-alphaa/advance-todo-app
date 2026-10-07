@@ -4,6 +4,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Clock,
+  Bell,
+  MapPin,
 } from 'lucide-react';
 import {
   TextField,
@@ -11,7 +14,7 @@ import {
   IconButton,
   Chip,
 } from '@mui/material';
-import { ITask, DayInfo, TaskStatus } from '../types';
+import { ITask, IEvent, DayInfo, TaskStatus } from '../types';
 import { TaskCard } from './TaskCard';
 
 interface SingleDayViewProps {
@@ -19,11 +22,13 @@ interface SingleDayViewProps {
   selectedDate: string;
   onSelectDate: (dateStr: string) => void;
   tasks: ITask[];
+  events?: IEvent[];
   onOpenDetails: (task: ITask) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
   onAssignDate: (id: string, date: string) => void;
   onDelete: (id: string) => void;
   onQuickAddTask: (date: string, title: string) => void;
+  onAddEvent?: (date: string) => void;
 }
 
 export const SingleDayView: React.FC<SingleDayViewProps> = ({
@@ -31,11 +36,13 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
   selectedDate,
   onSelectDate,
   tasks,
+  events = [],
   onOpenDetails,
   onStatusChange,
   onAssignDate,
   onDelete,
   onQuickAddTask,
+  onAddEvent,
 }) => {
   const [quickAddTitle, setQuickAddTitle] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -57,6 +64,8 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
   };
 
   const dayTasks = tasks.filter((t) => t.assignedDate === currentDay.dateString);
+  const dayEvents = events.filter((e) => e.eventDate === currentDay.dateString);
+
   const completedCount = dayTasks.filter((t) => t.status === 'DONE').length;
   const totalCount = dayTasks.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -216,6 +225,55 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
         </div>
       </div>
 
+      {/* Scheduled Calendar Events Section for Today */}
+      {dayEvents.length > 0 && (
+        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-3 shadow-xs space-y-2">
+          <div className="flex items-center justify-between text-xs font-bold text-[var(--text-main)]">
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+              <span>Calendar Events Today ({dayEvents.length})</span>
+            </div>
+            {onAddEvent && (
+              <button
+                onClick={() => onAddEvent(currentDay.dateString)}
+                className="text-[11px] text-[var(--accent-color)] hover:underline font-semibold"
+              >
+                + Add Event
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {dayEvents.map((evt) => (
+              <div
+                key={evt._id}
+                className="p-2.5 rounded-xl border border-[var(--border-color)] text-white shadow-xs flex flex-col justify-between"
+                style={{ backgroundColor: evt.color || '#F62440' }}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold">
+                    <Clock className="w-3.5 h-3.5 opacity-90" />
+                    <span>{evt.startTime}{evt.endTime ? ` - ${evt.endTime}` : ''}</span>
+                  </div>
+                  {evt.reminderMinutes > 0 && (
+                    <div className="flex items-center gap-1 text-[10px] bg-black/25 px-1.5 py-0.5 rounded-md">
+                      <Bell className="w-3 h-3" />
+                      <span>{evt.reminderMinutes}m</span>
+                    </div>
+                  )}
+                </div>
+                <h4 className="text-xs font-bold">{evt.title}</h4>
+                {evt.location && (
+                  <p className="text-[10px] opacity-90 flex items-center gap-1 mt-1">
+                    <MapPin className="w-3 h-3" />
+                    <span>{evt.location}</span>
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Task List */}
       <div className="space-y-2.5">
         {filteredTasks.map((task) => (
@@ -284,13 +342,24 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
             </div>
           </form>
         ) : (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="w-full py-3 px-4 rounded-2xl border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] bg-[var(--bg-card)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-main)] flex items-center justify-center gap-2 transition-all active:scale-98 shadow-xs"
-          >
-            <Plus className="w-4 h-4 text-[var(--accent-color)]" />
-            <span>Add Task to {currentDay.name}</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsAdding(true)}
+              className="flex-1 py-3 px-4 rounded-2xl border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] bg-[var(--bg-card)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-main)] flex items-center justify-center gap-2 transition-all active:scale-98 shadow-xs"
+            >
+              <Plus className="w-4 h-4 text-[var(--accent-color)]" />
+              <span>Add Task</span>
+            </button>
+            {onAddEvent && (
+              <button
+                onClick={() => onAddEvent(currentDay.dateString)}
+                className="py-3 px-4 rounded-2xl border border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] bg-[var(--bg-card)] text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-main)] flex items-center justify-center gap-1.5 transition-all active:scale-98 shadow-xs"
+              >
+                <Calendar className="w-4 h-4 text-[var(--accent-color)]" />
+                <span>+ Event</span>
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

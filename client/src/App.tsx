@@ -1,22 +1,28 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
+import toast, { Toaster } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { StatsBanner } from './components/StatsBanner';
 import { WeeklyBoardView } from './components/WeeklyBoardView';
 import { KanbanStatusView } from './components/KanbanStatusView';
 import { SingleDayView } from './components/SingleDayView';
+import { CalendarView } from './components/CalendarView';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { CreateTaskModal } from './components/CreateTaskModal';
+import { CreateEventModal } from './components/CreateEventModal';
+import { NotificationPopover } from './components/NotificationPopover';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { api } from './services/api';
-import { ITask, MetaStats, TaskStatus, DayInfo } from './types';
+import { ITask, IEvent, AppNotification, MetaStats, TaskStatus, DayInfo } from './types';
 import {
   formatDateToYYYYMMDD,
   getWeekDates,
   formatFriendlyDate,
 } from './utils/dateUtils';
 import { getMuiTheme } from './theme/muiTheme';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { playNotificationChime } from './utils/sound';
+import { useScrollLock } from './utils/scrollLock';
 
 export function App() {
   // Theme state: defaults to dark theme (#37353E, #44444E, #715A5A, #D3DAD9)
@@ -44,7 +50,7 @@ export function App() {
   const [currentWeekReference, setCurrentWeekReference] = useState<Date>(new Date());
   
   // Mobile-first default view: 'day' on small screens, 'weekly' on desktop
-  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'kanban'>(() => {
+  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'kanban' | 'calendar'>(() => {
     return typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'weekly';
   });
 
@@ -54,6 +60,7 @@ export function App() {
 
   // Data states
   const [tasks, setTasks] = useState<ITask[]>([]);
+  const [events, setEvents] = useState<IEvent[]>([]);
   const [stats, setStats] = useState<MetaStats>({
     total: 0,
     done: 0,
@@ -65,13 +72,37 @@ export function App() {
   });
   const [loading, setLoading] = useState(true);
   const [isRollingOver, setIsRollingOver] = useState(false);
-  const [toastMessage, setToastMessage] = useState<{ title: string; desc?: string; type?: 'info' | 'success' } | null>(null);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
+    try {
+      const saved = localStorage.getItem('tt_notifications');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState<HTMLElement | null>(null);
 
   // Modals
   const [selectedTask, setSelectedTask] = useState<ITask | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createDefaultDate, setCreateDefaultDate] = useState<string>(todayDateStr);
+
+  // Event creation & deletion
+  const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [createEventDefaultDate, setCreateEventDefaultDate] = useState<string>(todayDateStr);
+  const [eventToDelete, setEventToDelete] = useState<{ id: string; title: string } | null>(null);
+
+  // Disable background scrolling whenever any popup/modal is open
+  const isAnyModalOpen =
+    isDetailOpen ||
+    isCreateOpen ||
+    isCreateEventOpen ||
+    Boolean(eventToDelete);
+
+  useScrollLock(isAnyModalOpen);
 
   // Calculate the 7 days of the active week
   const weekDays = useMemo<DayInfo[]>(() => {
@@ -93,29 +124,29 @@ export function App() {
     }
   }, [isDarkTheme]);
 
-  const showToast = (title: string, desc?: string, type: 'info' | 'success' = 'info') => {
-    setToastMessage({ title, desc, type });
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-  };
+  // Save notifications to localStorage
+  useEffect(() => {
+    localStorage.setItem('tt_notifications', JSON.stringify(notifications));
+  }, [notifications]);
 
-  // Fetch Tasks and Stats
+  // Fetch Tasks, Events, and Stats
   const loadData = useCallback(async (isInitial = false) => {
     try {
       if (isInitial) setLoading(true);
 
-      const [fetchedTasks, fetchedStats] = await Promise.all([
+      const [fetchedTasks, fetchedEvents, fetchedStats] = await Promise.all([
         api.getTasks({
           clientToday: todayDateStr,
           weekStart,
           weekEnd,
           search: searchQuery.trim() || undefined,
         }),
+        api.getEvents(),
         api.getStats(weekStart, weekEnd),
       ]);
 
       setTasks(fetchedTasks);
+      setEvents(fetchedEvents);
       setStats(fetchedStats);
 
       // If initial and empty, seed sample Jira tasks
@@ -141,6 +172,117 @@ export function App() {
   useEffect(() => {
     loadData(true);
   }, [currentWeekReference, searchQuery]);
+
+  // Request browser Notification permission on startup
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
+  // Periodic Reminder Engine (Checks every 10 seconds)
+  useEffect(() => {
+    const checkReminders = async () => {
+      const now = new Date();
+      const nowMs = now.getTime();
+
+      for (const evt of events) {
+        if (evt.isNotified) continue;
+
+        try {
+          // Parse event date and start time
+          const [hours, minutes] = evt.startTime.split(':').map(Number);
+          const [y, m, d] = evt.eventDate.split('-').map(Number);
+          const eventTime = new Date(y, m - 1, d, hours, minutes);
+          const eventTimeMs = eventTime.getTime();
+
+          const reminderOffsetMs = (evt.reminderMinutes || 0) * 60 * 1000;
+          const triggerTimeMs = eventTimeMs - reminderOffsetMs;
+
+          // If current time is past the trigger point and not older than 1 hour past event
+          if (nowMs >= triggerTimeMs && nowMs <= eventTimeMs + 60 * 60 * 1000) {
+            // Update on server
+            await api.markEventNotified(evt._id);
+
+            // Update in local state
+            setEvents((prev) =>
+              prev.map((e) => (e._id === evt._id ? { ...e, isNotified: true } : e))
+            );
+
+            // Play notification sound
+            playNotificationChime();
+
+            // Calculate timing text
+            const diffMins = Math.round((eventTimeMs - nowMs) / 60000);
+            const timingText =
+              diffMins > 1
+                ? `starts in ${diffMins} minutes (${evt.startTime})`
+                : diffMins <= 0
+                ? `is starting now!`
+                : `starts in 1 minute!`;
+
+            // Trigger React Hot Toast notification
+            toast(
+              (t) => (
+                <div className="flex items-start gap-2.5">
+                  <span className="text-xl">🔔</span>
+                  <div>
+                    <div className="font-bold text-xs text-[var(--text-main)]">
+                      Event Reminder: {evt.title}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                      {timingText}
+                      {evt.location ? ` • ${evt.location}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ),
+              {
+                duration: 9000,
+                position: 'top-right',
+                style: {
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-main)',
+                  border: '1px solid var(--accent-color)',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                  borderRadius: '16px',
+                },
+              }
+            );
+
+            // Add to in-app notification center
+            const newNotif: AppNotification = {
+              id: `${evt._id}-${Date.now()}`,
+              title: `Reminder: ${evt.title}`,
+              message: `Event ${timingText} on ${evt.eventDate}${evt.location ? ` at ${evt.location}` : ''}.`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              eventId: evt._id,
+              read: false,
+            };
+
+            setNotifications((prev) => [newNotif, ...prev]);
+
+            // System Notification (if supported & permitted)
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification(`Event Reminder: ${evt.title}`, {
+                  body: `Event ${timingText}`,
+                  icon: '/favicon.svg',
+                });
+              } catch (e) {}
+            }
+          }
+        } catch (e) {
+          console.error('Error evaluating event reminder:', e);
+        }
+      }
+    };
+
+    const interval = setInterval(checkReminders, 10000);
+    checkReminders();
+
+    return () => clearInterval(interval);
+  }, [events]);
 
   // Navigate Weeks
   const handlePrevWeek = () => {
@@ -169,13 +311,14 @@ export function App() {
       await api.updateTaskStatus(id, newStatus);
       const updatedStats = await api.getStats(weekStart, weekEnd);
       setStats(updatedStats);
+      toast.success(`Task status set to ${newStatus.replace('_', ' ')}`);
     } catch (err) {
       console.error(err);
       loadData();
     }
   };
 
-  // Reassign Task to Any Other Day (Requirement 4)
+  // Reassign Task to Any Other Day
   const handleAssignDate = async (id: string, newDate: string) => {
     const targetTask = tasks.find((t) => t._id === id);
 
@@ -185,11 +328,7 @@ export function App() {
 
     try {
       await api.reassignTaskDate(id, newDate);
-      showToast(
-        'Task Reassigned',
-        `Moved ${targetTask?.key || 'Task'} to ${formatFriendlyDate(newDate)}`,
-        'success'
-      );
+      toast.success(`Moved ${targetTask?.key || 'task'} to ${formatFriendlyDate(newDate)}`);
       loadData();
     } catch (err) {
       console.error(err);
@@ -208,11 +347,7 @@ export function App() {
 
     try {
       await api.reassignTaskDate(taskId, targetDate);
-      showToast(
-        'Task Rescheduled',
-        `${task.key} scheduled for ${formatFriendlyDate(targetDate)}`,
-        'success'
-      );
+      toast.success(`${task.key} scheduled for ${formatFriendlyDate(targetDate)}`);
       loadData();
     } catch (err) {
       console.error(err);
@@ -245,10 +380,10 @@ export function App() {
       setTasks((prev) => [...prev, newTask]);
       const updatedStats = await api.getStats(weekStart, weekEnd);
       setStats(updatedStats);
-      showToast('Issue Created', `${newTask.key}: ${newTask.title}`, 'success');
+      toast.success(`Task created: ${newTask.key}`);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Failed to create task');
+      toast.error(err.message || 'Failed to create task');
     }
   };
 
@@ -259,10 +394,34 @@ export function App() {
       setTasks((prev) => [...prev, newTask]);
       const updatedStats = await api.getStats(weekStart, weekEnd);
       setStats(updatedStats);
-      showToast('Issue Created', `${newTask.key}: ${newTask.title}`, 'success');
+      toast.success(`Task created: ${newTask.key}`);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Failed to create task');
+      toast.error(err.message || 'Failed to create task');
+    }
+  };
+
+  // Create Event via Modal
+  const handleCreateEvent = async (eventData: Partial<IEvent>) => {
+    try {
+      const newEvt = await api.createEvent(eventData);
+      setEvents((prev) => [...prev, newEvt]);
+      toast.success(`Event scheduled: "${newEvt.title}"`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to create event');
+    }
+  };
+
+  // Delete Event
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await api.deleteEvent(id);
+      setEvents((prev) => prev.filter((e) => e._id !== id));
+      toast.success('Calendar event deleted');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete event');
     }
   };
 
@@ -278,6 +437,7 @@ export function App() {
       }
       const updatedStats = await api.getStats(weekStart, weekEnd);
       setStats(updatedStats);
+      toast.success('Changes saved');
     } catch (err) {
       console.error(err);
       loadData();
@@ -291,10 +451,10 @@ export function App() {
       setTasks((prev) => prev.filter((t) => t._id !== id));
       const updatedStats = await api.getStats(weekStart, weekEnd);
       setStats(updatedStats);
-      showToast('Issue Deleted', 'The task was successfully removed.');
+      toast.success('Task removed');
     } catch (err) {
       console.error(err);
-      alert('Failed to delete task');
+      toast.error('Failed to delete task');
     }
   };
 
@@ -304,17 +464,11 @@ export function App() {
     try {
       const res = await api.triggerRollover(todayDateStr);
       if (res.rolledOverCount > 0) {
-        showToast(
-          'Daily Rollover Applied',
-          `${res.rolledOverCount} unfinished task(s) from previous days were moved to today!`,
-          'success'
-        );
+        toast.success(`${res.rolledOverCount} unfinished task(s) rolled over to today!`);
       } else {
-        showToast(
-          'Rollover Up to Date',
-          'All tasks scheduled for past dates are completed or already on today.',
-          'info'
-        );
+        toast('All previous tasks are completed or already scheduled for today.', {
+          icon: '✨',
+        });
       }
       await loadData();
     } catch (err) {
@@ -324,9 +478,39 @@ export function App() {
     }
   };
 
+  const unreadNotificationsCount = notifications.filter((n) => !n.read).length;
+
   return (
     <ThemeProvider theme={muiTheme}>
       <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-main)] flex flex-col selection:bg-[var(--accent-color)] selection:text-[var(--text-on-accent)] transition-colors duration-200">
+        {/* React Hot Toast Notifications Container */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: 'var(--bg-card)',
+              color: 'var(--text-main)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25)',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10B981',
+                secondary: '#FFFFFF',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#EF4444',
+                secondary: '#FFFFFF',
+              },
+            },
+          }}
+        />
+
         {/* Top Navbar */}
         <Navbar
           currentView={currentView}
@@ -345,6 +529,12 @@ export function App() {
             setCreateDefaultDate(selectedDayDate || todayDateStr);
             setIsCreateOpen(true);
           }}
+          onOpenCreateEventModal={() => {
+            setCreateEventDefaultDate(selectedDayDate || todayDateStr);
+            setIsCreateEventOpen(true);
+          }}
+          unreadNotificationsCount={unreadNotificationsCount}
+          onOpenNotifications={(target) => setNotificationAnchorEl(target)}
         />
 
         {/* Main Content Area */}
@@ -362,7 +552,7 @@ export function App() {
             <div className="flex-1 flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-9 h-9 border-3 border-[var(--accent-color)] border-t-transparent rounded-full animate-spin mb-3" />
               <span className="text-xs font-semibold text-[var(--text-secondary)]">
-                Loading Jira issues from MongoDB...
+                Loading tasks & calendar events...
               </span>
             </div>
           ) : currentView === 'day' ? (
@@ -372,6 +562,7 @@ export function App() {
               selectedDate={selectedDayDate}
               onSelectDate={setSelectedDayDate}
               tasks={tasks}
+              events={events}
               onOpenDetails={(task) => {
                 setSelectedTask(task);
                 setIsDetailOpen(true);
@@ -380,12 +571,17 @@ export function App() {
               onAssignDate={handleAssignDate}
               onDelete={handleDeleteTask}
               onQuickAddTask={handleQuickAddTask}
+              onAddEvent={(d) => {
+                setCreateEventDefaultDate(d);
+                setIsCreateEventOpen(true);
+              }}
             />
           ) : currentView === 'weekly' ? (
-            /* 7-Day Week Board View (Requirement 2 & 5) */
+            /* 7-Day Week Board View */
             <WeeklyBoardView
               days={weekDays}
               tasks={tasks}
+              events={events}
               onOpenDetails={(task) => {
                 setSelectedTask(task);
                 setIsDetailOpen(true);
@@ -396,8 +592,25 @@ export function App() {
               onQuickAddTask={handleQuickAddTask}
               onDropTask={handleDropTaskDate}
             />
+          ) : currentView === 'calendar' ? (
+            /* Dedicated Month / Calendar Events View */
+            <CalendarView
+              events={events}
+              tasks={tasks}
+              onAddEvent={(d) => {
+                setCreateEventDefaultDate(d);
+                setIsCreateEventOpen(true);
+              }}
+              onDeleteEvent={(id, title) => {
+                setEventToDelete({ id, title });
+              }}
+              onOpenTaskDetails={(task) => {
+                setSelectedTask(task);
+                setIsDetailOpen(true);
+              }}
+            />
           ) : (
-            /* Jira Kanban Status Board View (Requirement 1 & 4) */
+            /* Jira Kanban Status Board View */
             <KanbanStatusView
               tasks={tasks}
               days={weekDays}
@@ -448,28 +661,45 @@ export function App() {
           defaultDate={createDefaultDate}
         />
 
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl rounded-2xl px-4 py-3 flex items-start gap-3 max-w-sm animate-slide-up">
-            {toastMessage.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-[var(--accent-color)] shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1">
-              <h5 className="font-bold text-xs text-[var(--text-main)]">
-                {toastMessage.title}
-              </h5>
-              {toastMessage.desc && (
-                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                  {toastMessage.desc}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Create Calendar Event Modal */}
+        <CreateEventModal
+          isOpen={isCreateEventOpen}
+          onClose={() => setIsCreateEventOpen(false)}
+          onSubmit={handleCreateEvent}
+          initialDate={createEventDefaultDate}
+        />
+
+        {/* In-App Notification Center Popover */}
+        <NotificationPopover
+          isOpen={Boolean(notificationAnchorEl)}
+          anchorEl={notificationAnchorEl}
+          onClose={() => setNotificationAnchorEl(null)}
+          notifications={notifications}
+          onClearAll={() => setNotifications([])}
+          onMarkAllRead={() =>
+            setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+          }
+        />
+
+        {/* Material UI Confirmation Popup for Deleting Event */}
+        <ConfirmDialog
+          open={Boolean(eventToDelete)}
+          title="Delete Event"
+          message={`Are you sure you want to delete calendar event "${eventToDelete?.title}"?`}
+          confirmText="Delete Event"
+          cancelText="Cancel"
+          confirmColor="error"
+          onConfirm={() => {
+            if (eventToDelete) {
+              handleDeleteEvent(eventToDelete.id);
+              setEventToDelete(null);
+            }
+          }}
+          onCancel={() => setEventToDelete(null)}
+        />
       </div>
     </ThemeProvider>
   );
 }
+
 export default App;

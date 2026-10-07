@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './db';
 import taskRoutes from './routes/taskRoutes';
+import eventRoutes from './routes/eventRoutes';
 
 dotenv.config();
 
@@ -19,13 +20,14 @@ app.use(express.json());
 
 // Routes
 app.use('/api/tasks', taskRoutes);
+app.use('/api/events', eventRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'Jira Todo API',
+    service: 'TT Task Tracker API',
   });
 });
 
