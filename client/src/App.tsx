@@ -148,26 +148,12 @@ export function App() {
       setTasks(fetchedTasks);
       setEvents(fetchedEvents);
       setStats(fetchedStats);
-
-      // If initial and empty, seed sample Jira tasks
-      if (isInitial && fetchedTasks.length === 0) {
-        const dates = weekDays.map((d) => d.dateString);
-        await api.seedDemoTasks(dates);
-        const reloadedTasks = await api.getTasks({
-          clientToday: todayDateStr,
-          weekStart,
-          weekEnd,
-        });
-        const reloadedStats = await api.getStats(weekStart, weekEnd);
-        setTasks(reloadedTasks);
-        setStats(reloadedStats);
-      }
     } catch (err: any) {
       console.error('Failed to load data:', err);
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [todayDateStr, weekStart, weekEnd, searchQuery, weekDays]);
+  }, [todayDateStr, weekStart, weekEnd, searchQuery]);
 
   useEffect(() => {
     loadData(true);
