@@ -1,6 +1,6 @@
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-export type TaskType = 'task' | 'story' | 'bug' | 'epic';
+export type TaskType = 'task' | 'bug' | 'story' | 'epic';
 
 export interface ISubtask {
   id: string;
@@ -12,7 +12,7 @@ export interface IRolloverHistory {
   fromDate: string;
   toDate: string;
   timestamp: string;
-  reason?: string;
+  reason: string;
 }
 
 export interface ITask {
@@ -23,8 +23,8 @@ export interface ITask {
   status: TaskStatus;
   priority: TaskPriority;
   type: TaskType;
-  assignedDate: string; // 'YYYY-MM-DD'
-  originalDate: string; // 'YYYY-MM-DD'
+  assignedDate: string; // YYYY-MM-DD
+  originalDate: string;
   isRolledOver: boolean;
   rolloverCount: number;
   rolloverHistory: IRolloverHistory[];
@@ -37,24 +37,22 @@ export interface ITask {
   remindersSentToday?: number;
   lastReminderDate?: string | null;
   lastReminderTimestamp?: string | null;
-  completedAt?: string | null;
   createdAt: string;
-  updatedAt: string;
+  completedAt: string | null;
 }
 
 export interface IEvent {
   _id: string;
   title: string;
   description?: string;
-  eventDate: string; // 'YYYY-MM-DD'
-  startTime: string; // 'HH:mm', e.g. '09:00'
-  endTime?: string; // 'HH:mm', e.g. '10:00'
-  color?: string;
+  eventDate: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime?: string; // HH:mm
+  reminderMinutes: number; // 0, 5, 10, 15, 30, 60
+  color: string;
   location?: string;
-  reminderMinutes: number; // e.g. 0, 5, 10, 15, 30, 60, 1440
   isNotified: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
 }
 
 export interface AppNotification {
@@ -68,11 +66,10 @@ export interface AppNotification {
 }
 
 export interface DayInfo {
-  name: string; // e.g. "Monday"
-  shortName: string; // e.g. "Mon"
-  dateString: string; // e.g. "2026-10-05"
-  displayDate: string; // e.g. "Oct 5"
-  fullDisplay: string; // e.g. "Monday, Oct 5, 2026"
+  name: string;
+  shortName: string;
+  dateString: string;
+  displayDate: string;
   isToday: boolean;
   isPast: boolean;
 }

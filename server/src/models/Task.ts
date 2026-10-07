@@ -34,6 +34,10 @@ export interface ITask extends Document {
   subtasks: ISubtask[];
   estimatedHours: number;
   loggedHours: number;
+  remindersPerDay: number; // 0 = off, 1..5 = times per day
+  remindersSentToday: number;
+  lastReminderDate?: string | null;
+  lastReminderTimestamp?: Date | null;
   completedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -89,6 +93,10 @@ const TaskSchema = new Schema<ITask>(
     subtasks: [SubtaskSchema],
     estimatedHours: { type: Number, default: 1 },
     loggedHours: { type: Number, default: 0 },
+    remindersPerDay: { type: Number, default: 0 },
+    remindersSentToday: { type: Number, default: 0 },
+    lastReminderDate: { type: String, default: null },
+    lastReminderTimestamp: { type: Date, default: null },
     completedAt: { type: Date, default: null },
   },
   {

@@ -1,12 +1,15 @@
 {
   "name": "jira-weekly-todo",
   "version": "1.0.0",
-  "description": "Jira-style Weekly Todo Application with MongoDB Atlas, React, Vite & TypeScript",
+  "description": "Jira-style Weekly Todo Application with MongoDB Atlas, React, Vite & TypeScript, and React Native Offline Mobile App",
   "scripts": {
     "start": "concurrently -n \"SERVER,CLIENT\" -c \"blue,magenta\" \"npm run server\" \"npm run client\"",
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,magenta\" \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm run dev",
+    "mobile": "cd mobile && npm start",
+    "mobile:android": "cd mobile && npm run android",
+    "mobile:ios": "cd mobile && npm run ios",
     "build:server": "cd server && npm run build",
     "build:client": "cd client && npm run build",
     "build": "npm run build:server && npm run build:client"
@@ -17,6 +20,8 @@
     "kanban",
     "weekly-planner",
     "react",
+    "react-native",
+    "offline-first",
     "mongodb",
     "mongoose"
   ],

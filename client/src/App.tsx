@@ -172,6 +172,7 @@ export function App() {
       const now = new Date();
       const nowMs = now.getTime();
 
+      // 1. Check Event Reminders
       for (const evt of events) {
         if (evt.isNotified) continue;
 
@@ -262,13 +263,119 @@ export function App() {
           console.error('Error evaluating event reminder:', e);
         }
       }
+
+      // 2. Check Task Daily Reminders
+      for (const t of tasks) {
+        if (!t.remindersPerDay || t.remindersPerDay <= 0) continue;
+        if (t.status === 'DONE') continue;
+        if (t.assignedDate > todayDateStr) continue; // Only remind for tasks assigned to today or overdue
+
+        try {
+          const isNewDay = t.lastReminderDate !== todayDateStr;
+          const sentToday = isNewDay ? 0 : (t.remindersSentToday || 0);
+
+          if (sentToday < t.remindersPerDay) {
+            // Check time interval spacing between reminders
+            // 12 hours active workday divided by frequency, in milliseconds
+            const intervalHours = Math.max(1, Math.floor(12 / t.remindersPerDay));
+            const minIntervalMs = intervalHours * 3600 * 1000;
+            const lastTimeMs = t.lastReminderTimestamp ? new Date(t.lastReminderTimestamp).getTime() : 0;
+
+            const shouldTrigger =
+              !t.lastReminderTimestamp ||
+              isNewDay ||
+              (nowMs - lastTimeMs >= minIntervalMs);
+
+            if (shouldTrigger) {
+              const newSent = sentToday + 1;
+              const nowIso = now.toISOString();
+
+              // Update on server
+              await api.updateTask(t._id, {
+                remindersSentToday: newSent,
+                lastReminderDate: todayDateStr,
+                lastReminderTimestamp: nowIso,
+              });
+
+              // Update in local state
+              setTasks((prev) =>
+                prev.map((item) =>
+                  item._id === t._id
+                    ? {
+                        ...item,
+                        remindersSentToday: newSent,
+                        lastReminderDate: todayDateStr,
+                        lastReminderTimestamp: nowIso,
+                      }
+                    : item
+                )
+              );
+
+              // Play notification sound
+              playNotificationChime();
+
+              // Trigger React Hot Toast notification
+              toast(
+                (toastItem) => (
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-xl">📋</span>
+                    <div>
+                      <div className="font-bold text-xs text-[var(--text-main)]">
+                        Task Reminder: [{t.key}] {t.title}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                        Daily reminder ({newSent} of {t.remindersPerDay}) • Status: {t.status.replace('_', ' ')}
+                      </div>
+                    </div>
+                  </div>
+                ),
+                {
+                  duration: 8000,
+                  position: 'top-right',
+                  style: {
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)',
+                    border: '1px solid var(--accent-color)',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                    borderRadius: '16px',
+                  },
+                }
+              );
+
+              // Add to in-app notification center
+              const newNotif: AppNotification = {
+                id: `${t._id}-${Date.now()}`,
+                title: `Task Reminder: ${t.key}`,
+                message: `[${t.title}] - Daily reminder (${newSent}/${t.remindersPerDay}). Current status: ${t.status.replace('_', ' ')}.`,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                taskId: t._id,
+                read: false,
+              };
+
+              setNotifications((prev) => [newNotif, ...prev]);
+
+              // System Notification (if supported & permitted)
+              if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                  new Notification(`Task Reminder: ${t.key}`, {
+                    body: `${t.title} (Reminder ${newSent}/${t.remindersPerDay})`,
+                    icon: '/favicon.svg',
+                  });
+                } catch (e) {}
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error evaluating task reminder:', err);
+        }
+      }
     };
 
     const interval = setInterval(checkReminders, 10000);
     checkReminders();
 
     return () => clearInterval(interval);
-  }, [events]);
+  }, [events, tasks, todayDateStr]);
 
   // Navigate Weeks
   const handlePrevWeek = () => {

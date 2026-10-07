@@ -8,6 +8,7 @@ import {
   CheckSquare,
   Plus,
   History,
+  Bell,
 } from 'lucide-react';
 import {
   TextField,
@@ -52,6 +53,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [newLabel, setNewLabel] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(task?.estimatedHours || 1);
   const [loggedHours, setLoggedHours] = useState(task?.loggedHours || 0);
+  const [remindersPerDay, setRemindersPerDay] = useState(task?.remindersPerDay || 0);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
 
   // Sync state if task prop changes
@@ -67,6 +69,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setLabels(task.labels || []);
       setEstimatedHours(task.estimatedHours || 1);
       setLoggedHours(task.loggedHours || 0);
+      setRemindersPerDay(task.remindersPerDay || 0);
     }
   }, [task]);
 
@@ -86,6 +89,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       labels,
       estimatedHours,
       loggedHours,
+      remindersPerDay,
     });
     onClose();
   };
@@ -261,6 +265,46 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   <MenuItem value="URGENT">▲ Urgent</MenuItem>
                 </Select>
               </FormControl>
+            </div>
+
+            {/* Daily Reminder Notifications */}
+            <div className="bg-[var(--bg-app)] p-3 rounded-2xl border border-[var(--border-color)]">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold uppercase text-[var(--text-muted)] tracking-wider flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                  Daily Task Reminders
+                </label>
+                {remindersPerDay > 0 && (
+                  <span className="text-[10px] font-bold text-[var(--accent-color)] bg-[var(--bg-card)] px-2 py-0.5 rounded-full border border-[var(--border-color)]">
+                    {task.remindersSentToday || 0}/{remindersPerDay} sent today
+                  </span>
+                )}
+              </div>
+              <FormControl fullWidth size="small">
+                <InputLabel id="detail-reminder-label">Reminder Frequency in a Day</InputLabel>
+                <Select
+                  labelId="detail-reminder-label"
+                  label="Reminder Frequency in a Day"
+                  value={remindersPerDay}
+                  onChange={(e) => {
+                    const newFreq = Number(e.target.value);
+                    setRemindersPerDay(newFreq);
+                    onUpdate(task._id, { remindersPerDay: newFreq });
+                  }}
+                >
+                  <MenuItem value={0}>No reminders (Off)</MenuItem>
+                  <MenuItem value={1}>🔔 1 time / day</MenuItem>
+                  <MenuItem value={2}>🔔 2 times / day</MenuItem>
+                  <MenuItem value={3}>🔔 3 times / day</MenuItem>
+                  <MenuItem value={4}>🔔 4 times / day</MenuItem>
+                  <MenuItem value={5}>🔔 5 times / day</MenuItem>
+                </Select>
+              </FormControl>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+                {remindersPerDay === 0
+                  ? 'No reminder notifications are configured for this task.'
+                  : `You will be notified ${remindersPerDay} time(s) a day until this task is completed.`}
+              </p>
             </div>
 
             {/* Date Assignment Carousel */}

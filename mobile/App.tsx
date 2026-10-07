@@ -1,0 +1,627 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+
+import { darkTheme, lightTheme, ThemeColors } from './src/theme/colors';
+import { offlineStorage } from './src/services/storage';
+import {
+  ITask,
+  IEvent,
+  AppNotification,
+  MetaStats,
+  TaskStatus,
+  DayInfo,
+} from './src/types';
+import {
+  formatDateToYYYYMMDD,
+  getWeekDates,
+  formatFriendlyDate,
+} from './src/utils/dateUtils';
+
+import { Header } from './src/components/Header';
+import { WeekNavigator } from './src/components/WeekNavigator';
+import { StatsBanner } from './src/components/StatsBanner';
+import { BottomNav } from './src/components/BottomNav';
+import { SingleDayView } from './src/components/SingleDayView';
+import { WeeklyBoardView } from './src/components/WeeklyBoardView';
+import { KanbanStatusView } from './src/components/KanbanStatusView';
+import { CalendarView } from './src/components/CalendarView';
+import { CreateTaskModal } from './src/components/CreateTaskModal';
+import { CreateEventModal } from './src/components/CreateEventModal';
+import { TaskDetailModal } from './src/components/TaskDetailModal';
+import { NotificationModal } from './src/components/NotificationModal';
+import { ConfirmModal } from './src/components/ConfirmModal';
+import { InAppNotificationBanner } from './src/components/InAppNotificationBanner';
+
+export default function App() {
+  // Theme state
+  const [isDark, setIsDark] = useState<boolean>(true);
+  const theme: ThemeColors = isDark ? darkTheme : lightTheme;
+
+  // Today reference
+  const todayObj = useMemo(() => new Date(), []);
+  const todayDateStr = useMemo(() => formatDateToYYYYMMDD(todayObj), [todayObj]);
+  const todayDisplay = useMemo(
+    () =>
+      todayObj.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      }),
+    [todayObj]
+  );
+
+  // Active week & view
+  const [currentWeekReference, setCurrentWeekReference] = useState<Date>(new Date());
+  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'kanban' | 'calendar'>('day');
+  const [selectedDayDate, setSelectedDayDate] = useState<string>(todayDateStr);
+
+  // Data states
+  const [tasks, setTasks] = useState<ITask[]>([]);
+  const [events, setEvents] = useState<IEvent[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [stats, setStats] = useState<MetaStats>({
+    total: 0,
+    done: 0,
+    inProgress: 0,
+    inReview: 0,
+    todo: 0,
+    rolledOver: 0,
+    completionRate: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [isRollingOver, setIsRollingOver] = useState(false);
+
+  // Modals state
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [createTaskDate, setCreateTaskDate] = useState<string>(todayDateStr);
+
+  const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [createEventDate, setCreateEventDate] = useState<string>(todayDateStr);
+
+  const [selectedTask, setSelectedTask] = useState<ITask | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    id: string;
+    type: 'task' | 'event';
+    title: string;
+  } | null>(null);
+
+  // In-app alert banner
+  const [activeBanner, setActiveBanner] = useState<{ title: string; message: string } | null>(null);
+
+  // Calculate week days
+  const weekDays = useMemo<DayInfo[]>(() => {
+    return getWeekDates(currentWeekReference, todayDateStr);
+  }, [currentWeekReference, todayDateStr]);
+
+  const weekStart = weekDays[0].dateString;
+  const weekEnd = weekDays[6].dateString;
+
+  // Load initial theme and notifications
+  useEffect(() => {
+    const initApp = async () => {
+      const savedTheme = await offlineStorage.getTheme();
+      setIsDark(savedTheme === 'dark');
+
+      const savedNotifs = await offlineStorage.getNotifications();
+      setNotifications(savedNotifs);
+    };
+    initApp();
+  }, []);
+
+  // Toggle & save theme
+  const handleToggleTheme = async () => {
+    const next = !isDark;
+    setIsDark(next);
+    await offlineStorage.saveTheme(next ? 'dark' : 'light');
+  };
+
+  // Load tasks, events, and stats from local storage
+  const loadData = useCallback(async () => {
+    try {
+      const [fetchedTasks, fetchedEvents, fetchedStats] = await Promise.all([
+        offlineStorage.getTasks({ weekStart, weekEnd }),
+        offlineStorage.getEvents(),
+        offlineStorage.getStats(weekStart, weekEnd),
+      ]);
+
+      setTasks(fetchedTasks);
+      setEvents(fetchedEvents);
+      setStats(fetchedStats);
+    } catch (e) {
+      console.error('Error loading offline data:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [weekStart, weekEnd]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData, currentWeekReference]);
+
+  // Periodic Reminder Engine (Every 10 seconds)
+  useEffect(() => {
+    const checkReminders = async () => {
+      const now = new Date();
+      const nowMs = now.getTime();
+
+      for (const evt of events) {
+        if (evt.isNotified) continue;
+
+        try {
+          const [hours, minutes] = evt.startTime.split(':').map(Number);
+          const [y, m, d] = evt.eventDate.split('-').map(Number);
+          const eventTime = new Date(y, m - 1, d, hours, minutes);
+          const eventTimeMs = eventTime.getTime();
+
+          const reminderOffsetMs = (evt.reminderMinutes || 0) * 60 * 1000;
+          const triggerTimeMs = eventTimeMs - reminderOffsetMs;
+
+          if (nowMs >= triggerTimeMs && nowMs <= eventTimeMs + 60 * 60 * 1000) {
+            await offlineStorage.markEventNotified(evt._id);
+
+            setEvents((prev) =>
+              prev.map((e) => (e._id === evt._id ? { ...e, isNotified: true } : e))
+            );
+
+            const diffMins = Math.round((eventTimeMs - nowMs) / 60000);
+            const timingText =
+              diffMins > 1
+                ? `starts in ${diffMins} minutes (${evt.startTime})`
+                : diffMins <= 0
+                ? `is starting now!`
+                : `starts in 1 minute!`;
+
+            // Display in-app banner
+            setActiveBanner({
+              title: `Reminder: ${evt.title}`,
+              message: `Event ${timingText} on ${evt.eventDate}${evt.location ? ` at ${evt.location}` : ''}.`,
+            });
+
+            // Save to notifications
+            const newNotif: AppNotification = {
+              id: `${evt._id}-${Date.now()}`,
+              title: `Reminder: ${evt.title}`,
+              message: `Event ${timingText} on ${evt.eventDate}`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              eventId: evt._id,
+              read: false,
+            };
+
+            const updatedNotifs = [newNotif, ...notifications];
+            setNotifications(updatedNotifs);
+            await offlineStorage.saveNotifications(updatedNotifs);
+          }
+        } catch (e) {
+          console.error('Error evaluating event reminder:', e);
+        }
+      }
+
+      // Check Task Daily Reminders
+      for (const t of tasks) {
+        if (!t.remindersPerDay || t.remindersPerDay <= 0) continue;
+        if (t.status === 'DONE') continue;
+        if (t.assignedDate > todayDateStr) continue;
+
+        try {
+          const isNewDay = t.lastReminderDate !== todayDateStr;
+          const sentToday = isNewDay ? 0 : (t.remindersSentToday || 0);
+
+          if (sentToday < t.remindersPerDay) {
+            const intervalHours = Math.max(1, Math.floor(12 / t.remindersPerDay));
+            const minIntervalMs = intervalHours * 3600 * 1000;
+            const lastTimeMs = t.lastReminderTimestamp ? new Date(t.lastReminderTimestamp).getTime() : 0;
+
+            const shouldTrigger =
+              !t.lastReminderTimestamp ||
+              isNewDay ||
+              (nowMs - lastTimeMs >= minIntervalMs);
+
+            if (shouldTrigger) {
+              const newSent = sentToday + 1;
+              const nowIso = now.toISOString();
+
+              await offlineStorage.updateTask(t._id, {
+                remindersSentToday: newSent,
+                lastReminderDate: todayDateStr,
+                lastReminderTimestamp: nowIso,
+              });
+
+              setTasks((prev) =>
+                prev.map((item) =>
+                  item._id === t._id
+                    ? {
+                        ...item,
+                        remindersSentToday: newSent,
+                        lastReminderDate: todayDateStr,
+                        lastReminderTimestamp: nowIso,
+                      }
+                    : item
+                )
+              );
+
+              // Display in-app banner
+              setActiveBanner({
+                title: `Task Reminder: [${t.key}]`,
+                message: `${t.title} • Daily reminder (${newSent}/${t.remindersPerDay}).`,
+              });
+
+              // Save to notifications
+              const newNotif: AppNotification = {
+                id: `${t._id}-${Date.now()}`,
+                title: `Task Reminder: ${t.key}`,
+                message: `[${t.title}] - Daily reminder (${newSent}/${t.remindersPerDay}). Status: ${t.status.replace('_', ' ')}.`,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                taskId: t._id,
+                read: false,
+              };
+
+              const updatedNotifs = [newNotif, ...notifications];
+              setNotifications(updatedNotifs);
+              await offlineStorage.saveNotifications(updatedNotifs);
+            }
+          }
+        } catch (e) {
+          console.error('Error evaluating task reminder:', e);
+        }
+      }
+    };
+
+    const interval = setInterval(checkReminders, 10000);
+    checkReminders();
+    return () => clearInterval(interval);
+  }, [events, tasks, notifications, todayDateStr]);
+
+  // Navigate Weeks
+  const handlePrevWeek = () => {
+    const prev = new Date(currentWeekReference);
+    prev.setDate(prev.getDate() - 7);
+    setCurrentWeekReference(prev);
+  };
+
+  const handleNextWeek = () => {
+    const next = new Date(currentWeekReference);
+    next.setDate(next.getDate() + 7);
+    setCurrentWeekReference(next);
+  };
+
+  const handleJumpToToday = () => {
+    setCurrentWeekReference(new Date());
+    setSelectedDayDate(todayDateStr);
+  };
+
+  // Status Change
+  const handleStatusChange = async (id: string, newStatus: TaskStatus) => {
+    setTasks((prev) =>
+      prev.map((t) => (t._id === id ? { ...t, status: newStatus } : t))
+    );
+    try {
+      await offlineStorage.updateTask(id, { status: newStatus });
+      const updatedStats = await offlineStorage.getStats(weekStart, weekEnd);
+      setStats(updatedStats);
+    } catch (e) {
+      console.error(e);
+      loadData();
+    }
+  };
+
+  // Create Task
+  const handleCreateTask = async (data: Partial<ITask>) => {
+    try {
+      const newTask = await offlineStorage.createTask(data);
+      setTasks((prev) => [...prev, newTask]);
+      const updatedStats = await offlineStorage.getStats(weekStart, weekEnd);
+      setStats(updatedStats);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Update Task
+  const handleUpdateTask = async (id: string, updates: Partial<ITask>) => {
+    setTasks((prev) =>
+      prev.map((t) => (t._id === id ? { ...t, ...updates } : t))
+    );
+    try {
+      const updated = await offlineStorage.updateTask(id, updates);
+      if (selectedTask?._id === id) {
+        setSelectedTask(updated);
+      }
+      const updatedStats = await offlineStorage.getStats(weekStart, weekEnd);
+      setStats(updatedStats);
+    } catch (e) {
+      console.error(e);
+      loadData();
+    }
+  };
+
+  // Delete Task
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await offlineStorage.deleteTask(id);
+      setTasks((prev) => prev.filter((t) => t._id !== id));
+      const updatedStats = await offlineStorage.getStats(weekStart, weekEnd);
+      setStats(updatedStats);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Create Event
+  const handleCreateEvent = async (data: Partial<IEvent>) => {
+    try {
+      const newEvt = await offlineStorage.createEvent(data);
+      setEvents((prev) => [...prev, newEvt]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Delete Event
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await offlineStorage.deleteEvent(id);
+      setEvents((prev) => prev.filter((e) => e._id !== id));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Rollover trigger
+  const handleTriggerRollover = async () => {
+    setIsRollingOver(true);
+    try {
+      const res = await offlineStorage.triggerRollover(todayDateStr);
+      await loadData();
+      if (res.rolledOverCount > 0) {
+        setActiveBanner({
+          title: 'Rollover Completed',
+          message: `${res.rolledOverCount} unfinished task(s) rolled over to today!`,
+        });
+      } else {
+        setActiveBanner({
+          title: 'All Caught Up',
+          message: 'All tasks are completed or already scheduled for today.',
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRollingOver(false);
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bgApp }]} edges={['top', 'left', 'right']}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+
+        {/* In-App Notification Alert Banner */}
+        <InAppNotificationBanner
+          theme={theme}
+          banner={activeBanner}
+          onDismiss={() => setActiveBanner(null)}
+        />
+
+        {/* Top Header */}
+        <Header
+          theme={theme}
+          todayDisplay={todayDisplay}
+          unreadCount={unreadCount}
+          onToggleTheme={handleToggleTheme}
+          onOpenNotifications={() => setIsNotifModalOpen(true)}
+          onOpenCreate={() => {
+            setCreateTaskDate(selectedDayDate || todayDateStr);
+            setIsCreateTaskOpen(true);
+          }}
+        />
+
+        {/* Week Navigator */}
+        <WeekNavigator
+          theme={theme}
+          weekDays={weekDays}
+          onPrevWeek={handlePrevWeek}
+          onNextWeek={handleNextWeek}
+          onJumpToToday={handleJumpToToday}
+        />
+
+        {/* Stats Banner */}
+        <StatsBanner
+          theme={theme}
+          stats={stats}
+          onTriggerRollover={handleTriggerRollover}
+          isRollingOver={isRollingOver}
+        />
+
+        {/* Body Views */}
+        <View style={styles.content}>
+          {loading ? (
+            <View style={styles.loaderCenter}>
+              <ActivityIndicator size="large" color={theme.accent} />
+              <Text style={[styles.loadingText, { color: theme.textMuted }]}>
+                Loading offline tasks & events...
+              </Text>
+            </View>
+          ) : currentView === 'day' ? (
+            <SingleDayView
+              theme={theme}
+              days={weekDays}
+              selectedDate={selectedDayDate}
+              onSelectDate={setSelectedDayDate}
+              tasks={tasks}
+              events={events}
+              onOpenDetails={(t) => {
+                setSelectedTask(t);
+                setIsDetailOpen(true);
+              }}
+              onStatusChange={handleStatusChange}
+              onQuickAddTask={(date, title) =>
+                handleCreateTask({ title, assignedDate: date, status: 'TODO' })
+              }
+              onOpenAddEvent={(date) => {
+                setCreateEventDate(date);
+                setIsCreateEventOpen(true);
+              }}
+            />
+          ) : currentView === 'weekly' ? (
+            <WeeklyBoardView
+              theme={theme}
+              days={weekDays}
+              tasks={tasks}
+              events={events}
+              onOpenDetails={(t) => {
+                setSelectedTask(t);
+                setIsDetailOpen(true);
+              }}
+              onStatusChange={handleStatusChange}
+              onOpenCreate={(date) => {
+                setCreateTaskDate(date);
+                setIsCreateTaskOpen(true);
+              }}
+            />
+          ) : currentView === 'kanban' ? (
+            <KanbanStatusView
+              theme={theme}
+              days={weekDays}
+              tasks={tasks}
+              onOpenDetails={(t) => {
+                setSelectedTask(t);
+                setIsDetailOpen(true);
+              }}
+              onStatusChange={handleStatusChange}
+              onOpenCreate={(date) => {
+                setCreateTaskDate(date || todayDateStr);
+                setIsCreateTaskOpen(true);
+              }}
+            />
+          ) : (
+            <CalendarView
+              theme={theme}
+              events={events}
+              tasks={tasks}
+              todayDateStr={todayDateStr}
+              onAddEvent={(d) => {
+                setCreateEventDate(d);
+                setIsCreateEventOpen(true);
+              }}
+              onDeleteEvent={(id, title) => {
+                setConfirmDelete({ id, type: 'event', title });
+              }}
+              onOpenTaskDetails={(t) => {
+                setSelectedTask(t);
+                setIsDetailOpen(true);
+              }}
+            />
+          )}
+        </View>
+
+        {/* Floating Bottom Navigation */}
+        <BottomNav
+          theme={theme}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          onOpenCreate={() => {
+            setCreateTaskDate(selectedDayDate || todayDateStr);
+            setIsCreateTaskOpen(true);
+          }}
+        />
+
+        {/* Modals */}
+        <CreateTaskModal
+          theme={theme}
+          isOpen={isCreateTaskOpen}
+          onClose={() => setIsCreateTaskOpen(false)}
+          onSubmit={handleCreateTask}
+          weekDays={weekDays}
+          defaultDate={createTaskDate}
+        />
+
+        <CreateEventModal
+          theme={theme}
+          isOpen={isCreateEventOpen}
+          onClose={() => setIsCreateEventOpen(false)}
+          onSubmit={handleCreateEvent}
+          initialDate={createEventDate}
+        />
+
+        <TaskDetailModal
+          theme={theme}
+          task={selectedTask}
+          isOpen={isDetailOpen}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedTask(null);
+          }}
+          onUpdate={handleUpdateTask}
+          onDelete={(id) => {
+            setConfirmDelete({ id, type: 'task', title: selectedTask?.title || 'task' });
+          }}
+          weekDays={weekDays}
+        />
+
+        <NotificationModal
+          theme={theme}
+          isOpen={isNotifModalOpen}
+          onClose={() => setIsNotifModalOpen(false)}
+          notifications={notifications}
+          onClearAll={async () => {
+            setNotifications([]);
+            await offlineStorage.saveNotifications([]);
+          }}
+          onMarkAllRead={async () => {
+            const updated = notifications.map((n) => ({ ...n, read: true }));
+            setNotifications(updated);
+            await offlineStorage.saveNotifications(updated);
+          }}
+        />
+
+        <ConfirmModal
+          theme={theme}
+          isOpen={Boolean(confirmDelete)}
+          title={confirmDelete?.type === 'task' ? 'Delete Task' : 'Delete Event'}
+          message={`Are you sure you want to delete "${confirmDelete?.title}"?`}
+          confirmText="Delete"
+          cancelText="Cancel"
+          isDestructive={true}
+          onConfirm={() => {
+            if (confirmDelete) {
+              if (confirmDelete.type === 'task') {
+                handleDeleteTask(confirmDelete.id);
+                setIsDetailOpen(false);
+                setSelectedTask(null);
+              } else {
+                handleDeleteEvent(confirmDelete.id);
+              }
+              setConfirmDelete(null);
+            }
+          }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+  loaderCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+  },
+});

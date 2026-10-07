@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar } from 'lucide-react';
+import { X, Calendar, Bell } from 'lucide-react';
 import {
   TextField,
   FormControl,
@@ -38,6 +38,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [assignedDate, setAssignedDate] = useState(defaultDate || todayStr);
   const [labelsInput, setLabelsInput] = useState('Frontend, Sprint');
   const [estimatedHours, setEstimatedHours] = useState(2);
+  const [remindersPerDay, setRemindersPerDay] = useState<number>(0);
 
   useScrollLock(isOpen);
 
@@ -49,6 +50,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       setPriority('MEDIUM');
       setType('task');
       setAssignedDate(defaultDate || todayStr);
+      setRemindersPerDay(0);
 
       const prevBody = document.body.style.overflow;
       const prevHtml = document.documentElement.style.overflow;
@@ -86,6 +88,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       assignedDate,
       labels,
       estimatedHours: Number(estimatedHours) || 1,
+      remindersPerDay: Number(remindersPerDay) || 0,
       subtasks: [],
     });
 
@@ -243,6 +246,37 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               value={estimatedHours}
               onChange={(e) => setEstimatedHours(Number(e.target.value))}
             />
+          </div>
+
+          {/* Daily Reminder Frequency */}
+          <div className="p-3 rounded-2xl bg-[var(--bg-app)] border border-[var(--border-color)]">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Bell className="w-4 h-4 text-[var(--accent-color)]" />
+              <span className="text-xs font-bold text-[var(--text-main)]">
+                Daily Task Reminders
+              </span>
+            </div>
+            <FormControl fullWidth size="small">
+              <InputLabel id="mui-reminders-label">Reminder Frequency in a Day</InputLabel>
+              <Select
+                labelId="mui-reminders-label"
+                label="Reminder Frequency in a Day"
+                value={remindersPerDay}
+                onChange={(e) => setRemindersPerDay(Number(e.target.value))}
+              >
+                <MenuItem value={0}>No reminders (Off)</MenuItem>
+                <MenuItem value={1}>🔔 1 time / day</MenuItem>
+                <MenuItem value={2}>🔔 2 times / day</MenuItem>
+                <MenuItem value={3}>🔔 3 times / day</MenuItem>
+                <MenuItem value={4}>🔔 4 times / day</MenuItem>
+                <MenuItem value={5}>🔔 5 times / day</MenuItem>
+              </Select>
+            </FormControl>
+            <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+              {remindersPerDay === 0
+                ? 'No notifications will be triggered for this task.'
+                : `You will receive up to ${remindersPerDay} notification reminder(s) throughout the day until completed.`}
+            </p>
           </div>
 
           {/* Labels (Material UI TextField) */}

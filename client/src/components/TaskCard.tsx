@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock,
   Eye,
+  Bell,
 } from 'lucide-react';
 import {
   Menu,
@@ -161,6 +162,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 px-1 py-0.5 rounded border border-amber-500/30 whitespace-nowrap"
               >
                 🔄 +{task.rolloverCount}d
+              </span>
+            )}
+            {Boolean(task.remindersPerDay && task.remindersPerDay > 0 && task.status !== 'DONE') && (
+              <span
+                title={`Daily reminder: ${task.remindersSentToday || 0}/${task.remindersPerDay} sent today`}
+                className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30 whitespace-nowrap"
+              >
+                <Bell className="w-2.5 h-2.5 text-blue-500" />
+                <span>{task.remindersPerDay}/d</span>
               </span>
             )}
           </div>
