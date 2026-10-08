@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { DayInfo } from '../types';
 
@@ -9,6 +9,8 @@ interface WeekNavigatorProps {
   theme: ThemeColors;
   weekDays: DayInfo[];
   todayDateDisplay?: string;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
   onPrevWeek: () => void;
   onNextWeek: () => void;
   onJumpToToday: () => void;
@@ -18,6 +20,8 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
   theme,
   weekDays,
   todayDateDisplay,
+  isDark,
+  onToggleTheme,
   onPrevWeek,
   onNextWeek,
   onJumpToToday,
@@ -51,7 +55,7 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
 
         <TouchableOpacity
           onPress={onJumpToToday}
-          style={[styles.todayButton, { backgroundColor: theme.columnHeader, borderColor: theme.border }]}
+          style={[styles.todayButton, { backgroundColor: theme.columnHeader, borderColor: theme.border }] }
           activeOpacity={0.7}
         >
           <Text style={[styles.todayButtonText, { color: theme.textMain }]}>TODAY</Text>
@@ -65,6 +69,21 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
         >
           <ChevronRight size={16} color={theme.textMuted} />
         </TouchableOpacity>
+
+        {onToggleTheme && (
+          <TouchableOpacity
+            onPress={onToggleTheme}
+            style={[styles.themeBtn, { backgroundColor: theme.columnHeader, borderColor: theme.border }]}
+            activeOpacity={0.7}
+            accessibilityLabel="Toggle Theme"
+          >
+            {isDark ? (
+              <Sun size={13} color={theme.accent} />
+            ) : (
+              <Moon size={13} color={theme.accent} />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -85,7 +104,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 375,
   },
   arrowButton: {
     padding: 6,
@@ -112,5 +131,12 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     fontWeight: '600',
     marginTop: 0.5,
+  },
+  themeBtn: {
+    padding: 5,
+    borderRadius: 9,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

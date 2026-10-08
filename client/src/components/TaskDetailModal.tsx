@@ -21,7 +21,8 @@ import {
 } from '@mui/material';
 import { ITask, TaskStatus, TaskPriority, TaskType, DayInfo, ISubtask } from '../types';
 import { useScrollLock } from '../utils/scrollLock';
-import { formatFriendlyDate } from '../utils/dateUtils';
+import { formatFriendlyDate, addDaysToDateStr } from '../utils/dateUtils';
+import { ArrowRight, FastForward } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 
 interface TaskDetailModalProps {
@@ -219,11 +220,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </IconButton>
 
               <IconButton
-                size="small"
                 onClick={onClose}
-                sx={{ color: 'var(--text-muted)' }}
+                sx={{
+                  color: 'var(--text-muted)',
+                  padding: '6px',
+                  '&:hover': { color: 'var(--text-main)', bgcolor: 'var(--border-color)' },
+                }}
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" strokeWidth={2.4} />
               </IconButton>
             </div>
           </div>
@@ -240,10 +244,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   value={status}
                   onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
                 >
-                  <MenuItem value="TODO">To Do</MenuItem>
-                  <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                  <MenuItem value="IN_REVIEW">In Review</MenuItem>
-                  <MenuItem value="DONE">Done</MenuItem>
+                  <MenuItem value="TODO">
+                    <span className="inline-flex items-center text-xs font-bold text-white bg-stone-600 px-2 py-0.5 rounded">TO DO</span>
+                  </MenuItem>
+                  <MenuItem value="IN_PROGRESS">
+                    <span className="inline-flex items-center text-xs font-bold text-white bg-blue-600 px-2 py-0.5 rounded">IN PROGRESS</span>
+                  </MenuItem>
+                  <MenuItem value="IN_REVIEW">
+                    <span className="inline-flex items-center text-xs font-bold text-white bg-purple-600 px-2 py-0.5 rounded">IN REVIEW</span>
+                  </MenuItem>
+                  <MenuItem value="DONE">
+                    <span className="inline-flex items-center text-xs font-bold text-white bg-emerald-600 px-2 py-0.5 rounded">DONE</span>
+                  </MenuItem>
                 </Select>
               </FormControl>
 
@@ -259,10 +271,18 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     onUpdate(task._id, { priority: newPri });
                   }}
                 >
-                  <MenuItem value="LOW">↓ Low</MenuItem>
-                  <MenuItem value="MEDIUM">→ Medium</MenuItem>
-                  <MenuItem value="HIGH">↑ High</MenuItem>
-                  <MenuItem value="URGENT">▲ Urgent</MenuItem>
+                  <MenuItem value="LOW">
+                    <span className="inline-flex items-center text-xs font-bold text-white bg-cyan-600 px-2 py-0.5 rounded">LOW</span>
+                  </MenuItem>
+                  <MenuItem value="MEDIUM">
+                    <span className="inline-flex items-center text-xs font-bold text-[#131313] bg-[#EFD395] px-2 py-0.5 rounded">MEDIUM</span>
+                  </MenuItem>
+                  <MenuItem value="HIGH">
+                    <span className="inline-flex items-center text-xs font-bold text-white bg-orange-600 px-2 py-0.5 rounded">HIGH</span>
+                  </MenuItem>
+                  <MenuItem value="URGENT">
+                    <span className="inline-flex items-center text-xs font-bold text-white bg-red-600 px-2 py-0.5 rounded">URGENT</span>
+                  </MenuItem>
                 </Select>
               </FormControl>
             </div>
@@ -293,11 +313,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   }}
                 >
                   <MenuItem value={0}>No reminders (Off)</MenuItem>
-                  <MenuItem value={1}>🔔 1 time / day</MenuItem>
-                  <MenuItem value={2}>🔔 2 times / day</MenuItem>
-                  <MenuItem value={3}>🔔 3 times / day</MenuItem>
-                  <MenuItem value={4}>🔔 4 times / day</MenuItem>
-                  <MenuItem value={5}>🔔 5 times / day</MenuItem>
+                  <MenuItem value={1}>1 time / day</MenuItem>
+                  <MenuItem value={2}>2 times / day</MenuItem>
+                  <MenuItem value={3}>3 times / day</MenuItem>
+                  <MenuItem value={4}>4 times / day</MenuItem>
+                  <MenuItem value={5}>5 times / day</MenuItem>
                 </Select>
               </FormControl>
               <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
@@ -436,41 +456,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </div>
 
             {/* Labels & Time Tracking Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Labels */}
-              <div>
-                <label className="block text-xs font-bold uppercase text-[var(--text-muted)] tracking-wider mb-1.5 flex items-center gap-1">
-                  <Tag className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-                  Labels
-                </label>
-
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {labels.map((lbl) => (
-                    <span
-                      key={lbl}
-                      className="flex items-center gap-1 text-xs bg-[var(--column-header)] text-[var(--text-main)] px-2 py-0.5 rounded-lg border border-[var(--border-color)]"
-                    >
-                      #{lbl}
-                      <button
-                        onClick={() => handleRemoveLabel(lbl)}
-                        className="text-[var(--text-muted)] hover:text-red-500"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Type tag & press Enter..."
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  onKeyDown={handleAddLabel}
-                />
-              </div>
-
+            <div className="grid grid-cols-1 gap-4">
               {/* Time Tracking */}
               <div>
                 <label className="block text-xs font-bold uppercase text-[var(--text-muted)] tracking-wider mb-1.5 flex items-center gap-1">

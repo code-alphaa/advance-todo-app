@@ -21,6 +21,8 @@ import {
   ListItemIcon,
   Divider,
 } from '@mui/material';
+import { ArrowRight, FastForward } from 'lucide-react';
+import { addDaysToDateStr } from '../utils/dateUtils';
 import { ITask, TaskStatus, TaskPriority, TaskType, DayInfo } from '../types';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -85,41 +87,41 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   };
 
-  const getPriorityBadge = (priority: TaskPriority) => {
+    const getPriorityBadge = (priority: TaskPriority) => {
     switch (priority) {
       case 'URGENT':
         return (
-          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-600 dark:text-red-300 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 whitespace-nowrap">
-            <Flame className="w-2.5 h-2.5" /> Urgent
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-white bg-red-600 px-2 py-0.5 rounded shadow-xs whitespace-nowrap">
+            <Flame className="w-2.5 h-2.5" /> URGENT
           </span>
         );
       case 'HIGH':
         return (
-          <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-300 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20 whitespace-nowrap">
-            ▲ High
+          <span className="text-[10px] font-bold text-white bg-orange-600 px-2 py-0.5 rounded shadow-xs whitespace-nowrap">
+            HIGH
           </span>
         );
       case 'MEDIUM':
         return (
-          <span className="text-[10px] font-medium text-amber-600 dark:text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 whitespace-nowrap">
-            ═ Med
+          <span className="text-[10px] font-bold text-[#131313] bg-[#EFD395] px-2 py-0.5 rounded shadow-xs whitespace-nowrap">
+            MEDIUM
           </span>
         );
       case 'LOW':
         return (
-          <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 whitespace-nowrap">
-            ▼ Low
+          <span className="text-[10px] font-bold text-white bg-cyan-600 px-2 py-0.5 rounded shadow-xs whitespace-nowrap">
+            LOW
           </span>
         );
     }
   };
 
-  const getStatusChip = (status: TaskStatus) => {
+    const getStatusChip = (status: TaskStatus) => {
     const map = {
-      TODO: { label: 'TO DO', style: 'bg-stone-500/15 text-stone-700 dark:text-stone-300' },
-      IN_PROGRESS: { label: 'IN PROGRESS', style: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' },
-      IN_REVIEW: { label: 'IN REVIEW', style: 'bg-purple-500/15 text-purple-700 dark:text-purple-300' },
-      DONE: { label: 'DONE', style: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold' },
+      TODO: { label: 'TO DO', style: 'bg-stone-600 text-white' },
+      IN_PROGRESS: { label: 'IN PROGRESS', style: 'bg-blue-600 text-white' },
+      IN_REVIEW: { label: 'IN REVIEW', style: 'bg-purple-600 text-white' },
+      DONE: { label: 'DONE', style: 'bg-emerald-600 text-white' },
     };
     const s = map[status] || map.TODO;
     return (
@@ -152,7 +154,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         {/* Top row: Type, Key, Priority, and Material UI Menu button */}
         <div className="flex items-center justify-between gap-1.5 mb-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
-            {getTypeIcon(task.type)}
+            
             <span className="text-xs font-mono font-bold text-[var(--accent-color)] truncate hover:underline">
               {task.key}
             </span>
@@ -169,7 +171,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 title={`Daily reminder: ${task.remindersSentToday || 0}/${task.remindersPerDay} sent today`}
                 className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-blue-500/15 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30 whitespace-nowrap"
               >
-                <Bell className="w-2.5 h-2.5 text-blue-500" />
+                
                 <span>{task.remindersPerDay}/d</span>
               </span>
             )}
@@ -200,24 +202,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {task.title}
         </h4>
 
-        {/* Labels */}
-        {task.labels && task.labels.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap mb-2">
-            {task.labels.slice(0, 2).map((label, idx) => (
-              <span
-                key={idx}
-                className="text-[9px] font-medium bg-[var(--column-bg)] text-[var(--text-secondary)] px-1.5 py-0.2 rounded border border-[var(--border-color)] truncate max-w-[100px]"
-              >
-                #{label}
-              </span>
-            ))}
-            {task.labels.length > 2 && (
-              <span className="text-[9px] text-[var(--text-muted)]">
-                +{task.labels.length - 2}
-              </span>
-            )}
-          </div>
-        )}
+
 
         {/* Card Footer: Date, Subtasks, and Status */}
         <div className="flex items-center justify-between pt-1.5 border-t border-[var(--border-color)]/60 text-[10px] text-[var(--text-muted)]">
@@ -317,6 +302,39 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </MenuItem>
 
           <Divider sx={{ my: 0.5, borderColor: 'var(--border-color)' }} />
+
+          <Divider sx={{ my: 0.5, borderColor: 'var(--border-color)' }} />
+
+          <div className="px-3 py-1 text-[9px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
+            Move Date
+          </div>
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              const nextDay = addDaysToDateStr(task.assignedDate || new Date().toISOString().slice(0, 10), 1);
+              onAssignDate(task._id, nextDay);
+              handleMenuClose();
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 26 }}>
+              <ArrowRight className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+            </ListItemIcon>
+            <span className="text-xs font-medium">Next Day (+1d)</span>
+          </MenuItem>
+
+          <MenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              const nextWeek = addDaysToDateStr(task.assignedDate || new Date().toISOString().slice(0, 10), 7);
+              onAssignDate(task._id, nextWeek);
+              handleMenuClose();
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 26 }}>
+              <FastForward className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+            </ListItemIcon>
+            <span className="text-xs font-medium">Next Week (+7d)</span>
+          </MenuItem>
 
           {/* Reassign to another day */}
           <MenuItem onClick={handleDayPickerOpen}>

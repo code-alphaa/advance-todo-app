@@ -159,7 +159,7 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
             onClick={onClose}
             className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--column-bg)] transition-colors"
           >
-            <X size={18} />
+            <X className="w-6 h-6" strokeWidth={2.4} />
           </button>
         </DialogTitle>
 

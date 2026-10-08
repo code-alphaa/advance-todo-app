@@ -10,6 +10,8 @@ export interface IEvent extends Document {
   location?: string;
   reminderMinutes: number; // e.g. 5, 10, 15, 30, 60, 1440. 0 = none
   isNotified: boolean;
+  googleEventId?: string;
+  source?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +27,8 @@ const EventSchema = new Schema<IEvent>(
     location: { type: String, default: '' },
     reminderMinutes: { type: Number, default: 15 },
     isNotified: { type: Boolean, default: false },
+    googleEventId: { type: String, index: true, sparse: true },
+    source: { type: String, default: 'manual' },
   },
   {
     timestamps: true,

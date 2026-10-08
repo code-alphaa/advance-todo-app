@@ -3,24 +3,24 @@
 @tailwind utilities;
 
 :root {
-  /* Light Theme based on Image 1: #FFFAF3, #FFF2DB, #FFE5BF, #F62440 */
-  --bg-app: #FFFAF3;
-  --bg-surface: #FFF2DB;
+  /* Light Theme based on user palette: #FDF8E1, #FDF4CB, #FCEFB4, #FAE588, #F9DC5C */
+  --bg-app: #FDF8E1;
+  --bg-surface: #FDF4CB;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #FFFDF9;
-  --border-color: #FFE5BF;
-  --border-hover: #F8D5A3;
-  --accent-color: #F62440;
-  --accent-hover: #DF1934;
-  --accent-subtle: #FEE8EC;
-  --text-main: #2A1F1D;
-  --text-secondary: #745F56;
-  --text-muted: #9E8980;
-  --text-on-accent: #FFFFFF;
-  --column-bg: #FFF2DB;
-  --column-header: #FFE7C4;
-  --chip-bg: #FFF8EE;
-  --shadow-card: 0 1px 3px rgba(110, 60, 20, 0.08), 0 2px 6px rgba(110, 60, 20, 0.04);
+  --bg-card-hover: #FFFDF5;
+  --border-color: #FAE588;
+  --border-hover: #F9DC5C;
+  --accent-color: #F9DC5C;
+  --accent-hover: #EBCB40;
+  --accent-subtle: #FDF4CB;
+  --text-main: #1F1E1D;
+  --text-secondary: #5C5648;
+  --text-muted: #8F8778;
+  --text-on-accent: #1F1E1D;
+  --column-bg: #FDF4CB;
+  --column-header: #FCEFB4;
+  --chip-bg: #FCEFB4;
+  --shadow-card: 0 1px 3px rgba(130, 110, 40, 0.08), 0 2px 6px rgba(130, 110, 40, 0.04);
 }
 
 :root.dark,

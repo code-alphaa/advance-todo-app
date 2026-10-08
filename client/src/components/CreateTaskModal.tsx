@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Bell } from 'lucide-react';
+import { X, Calendar, ArrowRight, FastForward } from 'lucide-react';
+import { addDaysToDateStr } from '../utils/dateUtils';
 import {
   TextField,
   FormControl,
@@ -48,7 +49,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       setDescription('');
       setStatus(defaultStatus);
       setPriority('MEDIUM');
-      setType('task');
       setAssignedDate(defaultDate || todayStr);
       setRemindersPerDay(0);
 
@@ -74,19 +74,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const labels = labelsInput
-      .split(',')
-      .map((l) => l.trim().replace(/^#/, ''))
-      .filter(Boolean);
-
     onSubmit({
       title: title.trim(),
       description: description.trim(),
       status,
       priority,
-      type,
+      type: 'task',
       assignedDate,
-      labels,
+      labels: [],
       estimatedHours: Number(estimatedHours) || 1,
       remindersPerDay: Number(remindersPerDay) || 0,
       subtasks: [],
@@ -120,105 +115,37 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-color)] rounded-xl transition-colors"
+            className="p-2 text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--border-color)] rounded-xl transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" strokeWidth={2.4} />
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 overscroll-contain">
-          {/* Issue Type & Priority (Material UI Selects) */}
-          <div className="grid grid-cols-2 gap-3">
-            <FormControl fullWidth size="small">
-              <InputLabel id="mui-issue-type-label">Issue Type</InputLabel>
-              <Select
-                labelId="mui-issue-type-label"
-                label="Issue Type"
-                value={type}
-                onChange={(e) => setType(e.target.value as TaskType)}
-              >
-                <MenuItem value="task">📘 Task</MenuItem>
-                <MenuItem value="story">📗 Story</MenuItem>
-                <MenuItem value="bug">🐞 Bug</MenuItem>
-                <MenuItem value="epic">⚡ Epic</MenuItem>
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth size="small">
-              <InputLabel id="mui-priority-label">Priority</InputLabel>
-              <Select
-                labelId="mui-priority-label"
-                label="Priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              >
-                <MenuItem value="LOW">↓ Low</MenuItem>
-                <MenuItem value="MEDIUM">→ Medium</MenuItem>
-                <MenuItem value="HIGH">↑ High</MenuItem>
-                <MenuItem value="URGENT">▲ Urgent</MenuItem>
-              </Select>
-            </FormControl>
-          </div>
-
-          {/* Title (Material UI TextField) */}
-          <TextField
-            autoFocus
-            required
-            fullWidth
-            size="small"
-            label="Task Summary / Title"
-            placeholder="e.g. Implement user authentication flow"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-
-          {/* Description (Material UI TextField) */}
-          <TextField
-            fullWidth
-            multiline
-            rows={3}
-            size="small"
-            label="Description / Acceptance Criteria"
-            placeholder="Add detailed acceptance criteria or context..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-
-          {/* Assign Date Grid */}
-          <div>
-            <label className="block text-xs font-bold text-[var(--text-secondary)] mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-              <span>Sprint Day Assignment</span>
-            </label>
-            <div className="grid grid-cols-7 gap-1.5 mb-2">
-              {weekDays.map((d) => (
-                <button
-                  key={d.dateString}
-                  type="button"
-                  onClick={() => setAssignedDate(d.dateString)}
-                  className={`py-1.5 px-1 rounded-xl text-center transition-all border ${
-                    assignedDate === d.dateString
-                      ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] border-[var(--accent-color)] font-bold shadow-xs'
-                      : 'bg-[var(--bg-card)] hover:bg-[var(--border-color)] text-[var(--text-main)] border-[var(--border-color)]'
-                  }`}
-                >
-                  <div className="text-[10px] font-bold">{d.shortName}</div>
-                  <div className="text-[8px] opacity-80">{d.displayDate}</div>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-[var(--text-secondary)] font-medium">Or custom date:</span>
-              <input
-                type="date"
-                value={assignedDate}
-                onChange={(e) => setAssignedDate(e.target.value)}
-                className="bg-[var(--bg-app)] border border-[var(--border-color)] rounded-lg px-2 py-0.5 text-xs text-[var(--text-main)] focus:outline-none focus:border-[var(--accent-color)]"
-              />
-            </div>
-          </div>
+                    {/* Priority (Material UI Select with Distinct Colored Badges) */}
+          <FormControl fullWidth size="small">
+            <InputLabel id="mui-priority-label">Priority</InputLabel>
+            <Select
+              labelId="mui-priority-label"
+              label="Priority"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TaskPriority)}
+            >
+              <MenuItem value="LOW">
+                <span className="inline-flex items-center text-xs font-bold text-white bg-cyan-600 px-2 py-0.5 rounded">LOW</span>
+              </MenuItem>
+              <MenuItem value="MEDIUM">
+                <span className="inline-flex items-center text-xs font-bold text-[#131313] bg-[#EFD395] px-2 py-0.5 rounded">MEDIUM</span>
+              </MenuItem>
+              <MenuItem value="HIGH">
+                <span className="inline-flex items-center text-xs font-bold text-white bg-orange-600 px-2 py-0.5 rounded">HIGH</span>
+              </MenuItem>
+              <MenuItem value="URGENT">
+                <span className="inline-flex items-center text-xs font-bold text-white bg-red-600 px-2 py-0.5 rounded">URGENT</span>
+              </MenuItem>
+            </Select>
+          </FormControl>
 
           {/* Status & Estimated Hours (Material UI Controls) */}
           <div className="grid grid-cols-2 gap-3">
@@ -230,10 +157,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 value={status}
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
               >
-                <MenuItem value="TODO">To Do</MenuItem>
-                <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                <MenuItem value="IN_REVIEW">In Review</MenuItem>
-                <MenuItem value="DONE">Done</MenuItem>
+                <MenuItem value="TODO">
+                  <span className="inline-flex items-center text-xs font-bold text-white bg-stone-600 px-2 py-0.5 rounded">TO DO</span>
+                </MenuItem>
+                <MenuItem value="IN_PROGRESS">
+                  <span className="inline-flex items-center text-xs font-bold text-white bg-blue-600 px-2 py-0.5 rounded">IN PROGRESS</span>
+                </MenuItem>
+                <MenuItem value="IN_REVIEW">
+                  <span className="inline-flex items-center text-xs font-bold text-white bg-purple-600 px-2 py-0.5 rounded">IN REVIEW</span>
+                </MenuItem>
+                <MenuItem value="DONE">
+                  <span className="inline-flex items-center text-xs font-bold text-white bg-emerald-600 px-2 py-0.5 rounded">DONE</span>
+                </MenuItem>
               </Select>
             </FormControl>
 
@@ -251,7 +186,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           {/* Daily Reminder Frequency */}
           <div className="p-3 rounded-2xl bg-[var(--bg-app)] border border-[var(--border-color)]">
             <div className="flex items-center gap-1.5 mb-2">
-              <Bell className="w-4 h-4 text-[var(--accent-color)]" />
+              
               <span className="text-xs font-bold text-[var(--text-main)]">
                 Daily Task Reminders
               </span>
@@ -265,11 +200,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 onChange={(e) => setRemindersPerDay(Number(e.target.value))}
               >
                 <MenuItem value={0}>No reminders (Off)</MenuItem>
-                <MenuItem value={1}>🔔 1 time / day</MenuItem>
-                <MenuItem value={2}>🔔 2 times / day</MenuItem>
-                <MenuItem value={3}>🔔 3 times / day</MenuItem>
-                <MenuItem value={4}>🔔 4 times / day</MenuItem>
-                <MenuItem value={5}>🔔 5 times / day</MenuItem>
+                <MenuItem value={1}>1 time / day</MenuItem>
+                <MenuItem value={2}>2 times / day</MenuItem>
+                <MenuItem value={3}>3 times / day</MenuItem>
+                <MenuItem value={4}>4 times / day</MenuItem>
+                <MenuItem value={5}>5 times / day</MenuItem>
               </Select>
             </FormControl>
             <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
@@ -279,15 +214,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </p>
           </div>
 
-          {/* Labels (Material UI TextField) */}
-          <TextField
-            fullWidth
-            size="small"
-            label="Labels (comma separated)"
-            placeholder="e.g. Design, Frontend, Urgent"
-            value={labelsInput}
-            onChange={(e) => setLabelsInput(e.target.value)}
-          />
+          
 
           {/* Footer Actions */}
           <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-end gap-2">

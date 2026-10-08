@@ -53,6 +53,8 @@ export interface IEvent {
   color: string;
   location?: string;
   isNotified: boolean;
+  googleEventId?: string;
+  source?: 'google' | 'manual';
   createdAt: string;
 }
 

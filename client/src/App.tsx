@@ -4,7 +4,6 @@ import toast, { Toaster } from 'react-hot-toast';
 import { Navbar } from './components/Navbar';
 import { StatsBanner } from './components/StatsBanner';
 import { WeeklyBoardView } from './components/WeeklyBoardView';
-import { KanbanStatusView } from './components/KanbanStatusView';
 import { SingleDayView } from './components/SingleDayView';
 import { CalendarView } from './components/CalendarView';
 import { MobileBottomNav } from './components/MobileBottomNav';
@@ -25,10 +24,20 @@ import { playNotificationChime } from './utils/sound';
 import { useScrollLock } from './utils/scrollLock';
 
 export function App() {
-  // Theme state: defaults to dark theme (#37353E, #44444E, #715A5A, #D3DAD9)
+  // Helper to detect system device appearance
+  const getSystemTheme = (): boolean => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  };
+
+  // Theme state: defaults to device appearance theme
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(() => {
     const saved = localStorage.getItem('jira_theme');
-    return saved ? saved === 'dark' : true; // Default to dark theme
+    if (saved === 'dark') return true;
+    if (saved === 'light') return false;
+    return getSystemTheme();
   });
 
   const muiTheme = useMemo(() => getMuiTheme(isDarkTheme), [isDarkTheme]);
@@ -50,7 +59,7 @@ export function App() {
   const [currentWeekReference, setCurrentWeekReference] = useState<Date>(new Date());
   
   // Mobile-first default view: 'day' on small screens, 'weekly' on desktop
-  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'kanban' | 'calendar'>(() => {
+  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'calendar'>(() => {
     return typeof window !== 'undefined' && window.innerWidth < 768 ? 'day' : 'weekly';
   });
 
@@ -111,6 +120,20 @@ export function App() {
 
   const weekStart = weekDays[0].dateString;
   const weekEnd = weekDays[6].dateString;
+
+  // Listen for device appearance theme changes and toggle accordingly
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleThemeChange = (e: MediaQueryListEvent) => {
+      setIsDarkTheme(e.matches);
+      localStorage.setItem('jira_theme', e.matches ? 'dark' : 'light');
+    };
+
+    mediaQuery.addEventListener('change', handleThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleThemeChange);
+  }, []);
 
   // Toggle Theme
   useEffect(() => {
@@ -685,7 +708,7 @@ export function App() {
               onQuickAddTask={handleQuickAddTask}
               onDropTask={handleDropTaskDate}
             />
-          ) : currentView === 'calendar' ? (
+          ) : (
             /* Dedicated Month / Calendar Events View */
             <CalendarView
               events={events}
@@ -701,23 +724,7 @@ export function App() {
                 setSelectedTask(task);
                 setIsDetailOpen(true);
               }}
-            />
-          ) : (
-            /* Jira Kanban Status Board View */
-            <KanbanStatusView
-              tasks={tasks}
-              days={weekDays}
-              selectedDayFilter={selectedDayFilter}
-              onSelectDayFilter={setSelectedDayFilter}
-              onOpenDetails={(task) => {
-                setSelectedTask(task);
-                setIsDetailOpen(true);
-              }}
-              onStatusChange={handleStatusChange}
-              onAssignDate={handleAssignDate}
-              onDelete={handleDeleteTask}
-              onQuickAddTask={handleQuickAddTask}
-              onDropTaskStatus={handleDropTaskStatus}
+              onRefreshEvents={loadData}
             />
           )}
         </main>

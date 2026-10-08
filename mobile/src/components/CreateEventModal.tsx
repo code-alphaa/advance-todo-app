@@ -97,8 +97,8 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
           {/* Header */}
           <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
             <Text style={[styles.dialogTitle, { color: theme.textMain }]}>Add Calendar Event</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X size={18} color={theme.textMuted} />
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={24} color={theme.textMain} strokeWidth={2.4} />
             </TouchableOpacity>
           </View>
 
@@ -290,7 +290,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   closeBtn: {
-    padding: 4,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dialogBody: {
     flexGrow: 0,

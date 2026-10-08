@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import ical from 'node-ical';
 import { Event } from '../models/Event';
 
 const router = Router();
@@ -20,6 +21,110 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+// POST /api/events/sync-ical - Sync Google Calendar via iCal URL
+router.post('/sync-ical', async (req: Request, res: Response) => {
+  try {
+    const { icalUrl } = req.body;
+    if (!icalUrl || typeof icalUrl !== 'string') {
+      return res.status(400).json({ error: 'A valid Google Calendar iCal URL is required' });
+    }
+
+    // Support webcal:// by converting to https://
+    const normalizedUrl = icalUrl.trim().replace(/^webcal:\/\//i, 'https://');
+    
+    // Fetch and parse the ical feed
+    const rawEvents = await ical.async.fromURL(normalizedUrl);
+    
+    let createdCount = 0;
+    let updatedCount = 0;
+    const syncedEvents: any[] = [];
+
+    for (const key of Object.keys(rawEvents)) {
+      const item = rawEvents[key] as any;
+      if (!item || item.type !== 'VEVENT' || !item.start) continue;
+
+      const startDate = new Date(item.start);
+      if (isNaN(startDate.getTime())) continue;
+
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const year = startDate.getFullYear();
+      const month = pad(startDate.getMonth() + 1);
+      const day = pad(startDate.getDate());
+      const eventDate = `${year}-${month}-${day}`;
+      const startTime = `${pad(startDate.getHours())}:${pad(startDate.getMinutes())}`;
+
+      let endTime = startTime;
+      if (item.end) {
+        const endDate = new Date(item.end);
+        if (!isNaN(endDate.getTime())) {
+          endTime = `${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`;
+        }
+      }
+
+      const uid = (item.uid || `${eventDate}-${startTime}-${item.summary || 'event'}`).toString();
+      const title = (item.summary || 'Google Calendar Event').toString().trim();
+      const description = (item.description || '').toString().trim();
+      const location = (item.location || '').toString().trim();
+
+      // Check if event already exists by googleEventId or (eventDate + startTime + title)
+      const existing = await Event.findOne({
+        $or: [
+          { googleEventId: uid },
+          { eventDate, startTime, title, source: 'google' },
+        ],
+      });
+
+      if (existing) {
+        existing.title = title;
+        existing.description = description;
+        existing.eventDate = eventDate;
+        existing.startTime = startTime;
+        existing.endTime = endTime;
+        existing.location = location;
+        existing.googleEventId = uid;
+        existing.source = 'google';
+        const saved = await existing.save();
+        updatedCount++;
+        syncedEvents.push(saved);
+      } else {
+        const newEvent = new Event({
+          title,
+          description,
+          eventDate,
+          startTime,
+          endTime,
+          color: '#4285F4', // Google signature blue
+          location,
+          reminderMinutes: 15,
+          isNotified: false,
+          googleEventId: uid,
+          source: 'google',
+        });
+        const saved = await newEvent.save();
+        createdCount++;
+        syncedEvents.push(saved);
+      }
+    }
+
+    // Return all events for the client to refresh its state
+    const allEvents = await Event.find().sort({ eventDate: 1, startTime: 1 });
+
+    res.json({
+      message: `Google Calendar synced: ${createdCount} imported, ${updatedCount} updated`,
+      createdCount,
+      updatedCount,
+      totalSynced: syncedEvents.length,
+      events: allEvents,
+    });
+  } catch (error: any) {
+    console.error('Error syncing iCal:', error);
+    res.status(500).json({
+      error: 'Failed to sync Google Calendar feed. Please check the URL and ensure it is a valid public or secret iCal address.',
+      details: error.message || String(error),
+    });
   }
 });
 
@@ -51,6 +156,7 @@ router.post('/', async (req: Request, res: Response) => {
       location: location || '',
       reminderMinutes: reminderMinutes !== undefined ? Number(reminderMinutes) : 15,
       isNotified: false,
+      source: 'manual',
     });
 
     const savedEvent = await newEvent.save();

@@ -84,7 +84,6 @@ export const api = {
       body: JSON.stringify({ items }),
     });
     if (!res.ok) throw new Error('Failed to reorder tasks');
-    return res.json();
   },
 
   async triggerRollover(clientToday: string): Promise<{ rolledOverCount: number; updatedTasks: ITask[] }> {
@@ -163,5 +162,24 @@ export const api = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete event');
+  },
+
+  async syncGoogleCalendarIcal(icalUrl: string): Promise<{
+    message: string;
+    createdCount: number;
+    updatedCount: number;
+    totalSynced: number;
+    events: IEvent[];
+  }> {
+    const res = await fetch(`${EVENTS_API_BASE}/sync-ical`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ icalUrl }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to sync Google Calendar feed');
+    }
+    return res.json();
   },
 };

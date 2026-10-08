@@ -53,6 +53,8 @@ export interface IEvent {
   location?: string;
   reminderMinutes: number; // e.g. 0, 5, 10, 15, 30, 60, 1440
   isNotified: boolean;
+  googleEventId?: string;
+  source?: 'google' | 'manual';
   createdAt?: string;
   updatedAt?: string;
 }

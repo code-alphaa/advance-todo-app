@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, useColorScheme, Appearance } from 'react-native';
 import { Text } from './src/components/ScaledText';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ import {
   formatDateToYYYYMMDD,
   getWeekDates,
   formatFriendlyDate,
+  addDaysToDateStr,
 } from './src/utils/dateUtils';
 import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTimes';
 
@@ -33,7 +34,6 @@ import { StatsBanner } from './src/components/StatsBanner';
 import { BottomNav } from './src/components/BottomNav';
 import { SingleDayView } from './src/components/SingleDayView';
 import { WeeklyBoardView } from './src/components/WeeklyBoardView';
-import { KanbanStatusView } from './src/components/KanbanStatusView';
 import { CalendarView } from './src/components/CalendarView';
 import { CreateTaskModal } from './src/components/CreateTaskModal';
 import { CreateEventModal } from './src/components/CreateEventModal';
@@ -42,8 +42,13 @@ import { ConfirmModal } from './src/components/ConfirmModal';
 import { InAppNotificationBanner } from './src/components/InAppNotificationBanner';
 
 export default function App() {
-  // Theme state
-  const [isDark, setIsDark] = useState<boolean>(true);
+  // Device appearance detection & theme state
+  const systemColorScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState<'system' | 'dark' | 'light'>('system');
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const initialScheme = Appearance.getColorScheme();
+    return initialScheme === 'dark';
+  });
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [fontScale, setFontScale] = useState<number>(DEFAULT_FONT_SCALE);
   const theme: ThemeColors = isDark ? darkTheme : lightTheme;
@@ -63,7 +68,7 @@ export default function App() {
 
   // Active week & view
   const [currentWeekReference, setCurrentWeekReference] = useState<Date>(new Date());
-  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'kanban' | 'calendar'>('day');
+  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'calendar'>('day');
   const [selectedDayDate, setSelectedDayDate] = useState<string>(todayDateStr);
 
   // Data states
@@ -115,7 +120,15 @@ export default function App() {
         offlineStorage.getTheme(),
         offlineStorage.getFontScale(),
       ]);
-      setIsDark(savedTheme === 'dark');
+
+      setThemeMode(savedTheme);
+      if (savedTheme === 'system') {
+        const active = Appearance.getColorScheme() || systemColorScheme;
+        setIsDark(active === 'dark');
+      } else {
+        setIsDark(savedTheme === 'dark');
+      }
+
       if (savedFontScale != null) setFontScale(normalizeFontScale(savedFontScale));
       setThemeLoaded(true);
 
@@ -127,10 +140,31 @@ export default function App() {
     initApp();
   }, []);
 
-  // Toggle & save theme
+  // Listen for device appearance changes and automatically toggle between dark and light
+  useEffect(() => {
+    const handleDeviceAppearance = (scheme: string | null | undefined) => {
+      const active = scheme || Appearance.getColorScheme() || 'light';
+      setIsDark(active === 'dark');
+      setThemeMode('system');
+      offlineStorage.saveTheme('system');
+    };
+
+    if (systemColorScheme) {
+      setIsDark(systemColorScheme === 'dark');
+    }
+
+    const sub = Appearance.addChangeListener(({ colorScheme }) => {
+      handleDeviceAppearance(colorScheme);
+    });
+
+    return () => sub.remove();
+  }, [systemColorScheme]);
+
+  // Manual toggle theme
   const handleToggleTheme = async () => {
     const next = !isDark;
     setIsDark(next);
+    setThemeMode(next ? 'dark' : 'light');
     await offlineStorage.saveTheme(next ? 'dark' : 'light');
   };
 
@@ -336,6 +370,31 @@ export default function App() {
     }
   };
 
+  // Move Task (+1d or +7d)
+  const handleMoveTask = async (id: string, shiftDays: number) => {
+    const task = tasks.find((t) => t._id === id);
+    if (!task) return;
+    const baseDate = task.assignedDate || todayDateStr;
+    const newDate = addDaysToDateStr(baseDate, shiftDays);
+
+    setTasks((prev) =>
+      prev.map((t) => (t._id === id ? { ...t, assignedDate: newDate } : t))
+    );
+
+    try {
+      await offlineStorage.updateTask(id, { assignedDate: newDate });
+      const updatedStats = await offlineStorage.getStats(weekStart, weekEnd);
+      setStats(updatedStats);
+      setActiveBanner({
+        title: 'Task Moved',
+        message: `${task.key} moved to ${newDate}`,
+      });
+    } catch (e) {
+      console.error(e);
+      loadData();
+    }
+  };
+
   // Update Task
   const handleUpdateTask = async (id: string, updates: Partial<ITask>) => {
     setTasks((prev) =>
@@ -434,6 +493,8 @@ export default function App() {
             <WeekNavigator
               theme={theme}
               weekDays={weekDays}
+              isDark={isDark}
+              onToggleTheme={handleToggleTheme}
               onPrevWeek={handlePrevWeek}
               onNextWeek={handleNextWeek}
               onJumpToToday={handleJumpToToday}
@@ -470,6 +531,7 @@ export default function App() {
                 }}
                 onStatusChange={handleStatusChange}
                 onDeleteTask={(t) => setConfirmDelete({ id: t._id, type: 'task', title: t.title })}
+                onMoveTask={handleMoveTask}
                 onOpenAddEvent={(date) => {
                   setCreateEventDate(date);
                   setIsCreateEventOpen(true);
@@ -503,27 +565,14 @@ export default function App() {
                   setIsDetailOpen(true);
                 }}
                 onStatusChange={handleStatusChange}
+                onMoveTask={handleMoveTask}
                 onOpenCreate={(date) => {
                   setCreateTaskDate(date);
                   setIsCreateTaskOpen(true);
                 }}
               />
-            ) : currentView === 'kanban' ? (
-              <KanbanStatusView
-                theme={theme}
-                days={weekDays}
-                tasks={tasks}
-                onOpenDetails={(t) => {
-                  setSelectedTask(t);
-                  setIsDetailOpen(true);
-                }}
-                onStatusChange={handleStatusChange}
-                onOpenCreate={(date) => {
-                  setCreateTaskDate(date || todayDateStr);
-                  setIsCreateTaskOpen(true);
-                }}
-              />
             ) : (
+
               <CalendarView
                 theme={theme}
                 events={events}
@@ -533,6 +582,12 @@ export default function App() {
                   setCreateEventDate(d);
                   setIsCreateEventOpen(true);
                 }}
+                onAddTask={(d) => {
+                  setCreateTaskDate(d);
+                  setIsCreateTaskOpen(true);
+                }}
+                onMoveTask={handleMoveTask}
+                onStatusChange={handleStatusChange}
                 onDeleteEvent={(id, title) => {
                   setConfirmDelete({ id, type: 'event', title });
                 }}
@@ -540,6 +595,7 @@ export default function App() {
                   setSelectedTask(t);
                   setIsDetailOpen(true);
                 }}
+                onRefreshEvents={loadData}
               />
             )}
           </View>

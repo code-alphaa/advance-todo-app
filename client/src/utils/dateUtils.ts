@@ -83,3 +83,11 @@ export function formatFriendlyDate(dateStr: string): string {
     return dateStr;
   }
 }
+
+export function addDaysToDateStr(dateStr: string, days: number): string {
+  if (!dateStr) return dateStr;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return formatDateToYYYYMMDD(dt);
+}

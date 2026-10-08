@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { Bell, Clock, RotateCcw } from 'lucide-react-native';
+import { Clock } from 'lucide-react-native';
 import { Text } from './ScaledText';
 import { TimeWheelPicker } from './TimeWheelPicker';
 import { ThemeColors } from '../theme/colors';
@@ -26,8 +26,6 @@ export const ReminderTimesEditor: React.FC<ReminderTimesEditorProps> = ({
   headerRight,
 }) => {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const defaults = getDefaultReminderTimes(count);
-  const isDefault = times.join(',') === defaults.join(',');
 
   const handleSelectCount = (next: number) => {
     onChange(next, getDefaultReminderTimes(next));
@@ -43,9 +41,8 @@ export const ReminderTimesEditor: React.FC<ReminderTimesEditorProps> = ({
     <View style={styles.formGroup}>
       <View style={styles.headerRow}>
         <View style={styles.labelRow}>
-          <Bell size={14} color={theme.accent} />
           <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
-            Daily Reminders ({count === 0 ? 'Off' : `${count}x / day`})
+            Daily Reminders ({count === 0 ? 'Off' : `${count}/day`})
           </Text>
         </View>
         {headerRight}
@@ -75,7 +72,7 @@ export const ReminderTimesEditor: React.FC<ReminderTimesEditorProps> = ({
                   },
                 ]}
               >
-                {option === 0 ? 'Off' : `🔔 ${option}/day`}
+                {option === 0 ? 'Off' : `${option}/day`}
               </Text>
             </TouchableOpacity>
           );
@@ -119,27 +116,13 @@ export const ReminderTimesEditor: React.FC<ReminderTimesEditorProps> = ({
           setEditingIndex(null);
         }}
       />
-
-      <View style={styles.footerRow}>
-        <Text style={[styles.helperText, { color: theme.textMuted }]}>
-          {count === 0
-            ? 'No notifications will be triggered for this task.'
-            : `Tap a time to change it. You'll be reminded at these times each day until completed.`}
-        </Text>
-        {count > 0 && !isDefault && (
-          <TouchableOpacity onPress={() => onChange(count, defaults)} style={styles.resetBtn}>
-            <RotateCcw size={11} color={theme.accent} />
-            <Text style={[styles.resetText, { color: theme.accent }]}>Defaults</Text>
-          </TouchableOpacity>
-        )}
-      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   formGroup: {
-    gap: 6,
+    gap: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -159,60 +142,46 @@ const styles = StyleSheet.create({
   },
   chipsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     paddingVertical: 2,
   },
   chip: {
-    borderWidth: 1,
-    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    minHeight: 34,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chipText: {
     fontSize: 12,
   },
   timesBox: {
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: 12,
     paddingHorizontal: 12,
+    marginTop: 4,
   },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
-    minHeight: 46,
+    paddingVertical: 10,
   },
   timeLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   timeButton: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   timeButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  helperText: {
-    fontSize: 11,
-    flex: 1,
-  },
-  resetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  resetText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
 });

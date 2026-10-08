@@ -1,28 +1,24 @@
 import React, { useState, useMemo } from 'react';
-import {
-  View,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-} from 'react-native';
+import { View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
   Clock,
-  Bell,
   Trash2,
+  Calendar as CalIcon,
+  RefreshCw,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
-import { IEvent, ITask } from '../types';
+import { IEvent, ITask, TaskStatus } from '../types/index';
 import {
   getMonthCalendarCells,
   formatMonthYear,
-  formatDateToYYYYMMDD,
   formatFriendlyDate,
 } from '../utils/dateUtils';
+import { SyncGoogleCalendarModal } from './SyncGoogleCalendarModal';
+import { DayDetailsModal } from './DayDetailsModal';
 
 interface CalendarViewProps {
   theme: ThemeColors;
@@ -30,8 +26,12 @@ interface CalendarViewProps {
   tasks: ITask[];
   todayDateStr: string;
   onAddEvent: (dateStr: string) => void;
+  onAddTask?: (dateStr: string) => void;
   onDeleteEvent: (id: string, title: string) => void;
   onOpenTaskDetails: (task: ITask) => void;
+  onMoveTask?: (id: string, shiftDays: number) => void;
+  onStatusChange?: (id: string, status: TaskStatus) => void;
+  onRefreshEvents?: () => void;
 }
 
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -42,11 +42,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   tasks,
   todayDateStr,
   onAddEvent,
+  onAddTask,
   onDeleteEvent,
   onOpenTaskDetails,
+  onMoveTask,
+  onStatusChange,
+  onRefreshEvents,
 }) => {
   const [currentMonthDate, setCurrentMonthDate] = useState(() => new Date());
   const [selectedCellDate, setSelectedCellDate] = useState<string>(todayDateStr);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isDayPopupOpen, setIsDayPopupOpen] = useState(false);
 
   const year = currentMonthDate.getFullYear();
   const month = currentMonthDate.getMonth();
@@ -73,6 +79,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const selectedDateEvents = events.filter((e) => e.eventDate === selectedCellDate);
   const selectedDateTasks = tasks.filter((t) => t.assignedDate === selectedCellDate);
 
+  const handleCellPress = (dateString: string) => {
+    setSelectedCellDate(dateString);
+    setIsDayPopupOpen(true);
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.bgApp }]}
@@ -89,7 +100,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <ChevronLeft size={16} color={theme.textMain} />
         </TouchableOpacity>
 
-        <View style={styles.headerCenter}>
+        <View style={styles.centerGroup}>
           <Text style={[styles.monthTitle, { color: theme.textMain }]}>
             {formatMonthYear(currentMonthDate)}
           </Text>
@@ -104,12 +115,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => onAddEvent(selectedCellDate || todayDateStr)}
+              onPress={() => setIsSyncModalOpen(true)}
+              style={[styles.syncGoogleTopBtn, { backgroundColor: '#4285F4' }]}
+              activeOpacity={0.8}
+            >
+              <RefreshCw size={10} color="#FFFFFF" />
+              <Text style={styles.syncGoogleTopText}>Google Sync</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => onAddEvent(selectedCellDate)}
               style={[styles.addEventTopBtn, { backgroundColor: theme.accent }]}
               activeOpacity={0.8}
             >
-              <Plus size={12} color={theme.textOnAccent} />
-              <Text style={[styles.addEventTopText, { color: theme.textOnAccent }]}>Add Event</Text>
+              <Plus size={11} color={theme.textOnAccent} />
+              <Text style={[styles.addEventTopText, { color: theme.textOnAccent }]}>Add</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -142,7 +162,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           return (
             <TouchableOpacity
               key={`${cell.dateString}-${idx}`}
-              onPress={() => setSelectedCellDate(cell.dateString)}
+              onPress={() => handleCellPress(cell.dateString)}
               style={[
                 styles.cell,
                 {
@@ -151,22 +171,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     : cell.isCurrentMonth
                     ? theme.bgCard
                     : theme.bgApp,
-                  borderColor: cell.isToday ? theme.accent : theme.border,
-                  borderWidth: cell.isToday ? 2 : 0.5,
+                  borderColor: isSelected ? theme.accent : theme.border,
+                  borderWidth: isSelected ? 1.5 : 0.5,
+                  opacity: cell.isCurrentMonth ? 1 : 0.4,
                 },
               ]}
               activeOpacity={0.7}
             >
+              {/* Day Number and Today Badge */}
               <View style={styles.cellDayHeader}>
                 <Text
                   style={[
                     styles.cellDayNumber,
                     {
-                      color: cell.isToday
+                      color: isSelected
                         ? theme.accent
-                        : cell.isCurrentMonth
-                        ? theme.textMain
-                        : theme.textMuted,
+                        : cell.isToday
+                        ? theme.accent
+                        : theme.textMain,
                       fontWeight: cell.isToday ? '900' : '600',
                     },
                   ]}
@@ -188,7 +210,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 {cellEvents.slice(0, 2).map((evt) => (
                   <View
                     key={evt._id}
-                    style={[styles.eventDot, { backgroundColor: evt.color || theme.accent }]}
+                    style={[styles.eventDot, { backgroundColor: evt.color || theme.accent }] }
                   />
                 ))}
                 {cellTasks.length > 0 && (
@@ -206,14 +228,26 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <Text style={[styles.selectedDayTitle, { color: theme.textMain }]}>
             {formatFriendlyDate(selectedCellDate)}
           </Text>
-          <TouchableOpacity
-            onPress={() => onAddEvent(selectedCellDate)}
-            style={[styles.smallAddEventBtn, { backgroundColor: theme.accent }]}
-            activeOpacity={0.7}
-          >
-            <Plus size={11} color={theme.textOnAccent} />
-            <Text style={[styles.smallAddEventText, { color: theme.textOnAccent }]}>Add Event</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {onAddTask && (
+              <TouchableOpacity
+                onPress={() => onAddTask(selectedCellDate)}
+                style={[styles.smallAddEventBtn, { backgroundColor: theme.chipBg, borderColor: theme.border, borderWidth: 1 }]}
+                activeOpacity={0.7}
+              >
+                <Plus size={11} color={theme.textMain} />
+                <Text style={[styles.smallAddEventText, { color: theme.textMain }]}>Task</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => onAddEvent(selectedCellDate)}
+              style={[styles.smallAddEventBtn, { backgroundColor: theme.accent }]}
+              activeOpacity={0.7}
+            >
+              <Plus size={11} color={theme.textOnAccent} />
+              <Text style={[styles.smallAddEventText, { color: theme.textOnAccent }]}>Add Event</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Events for this day */}
@@ -233,9 +267,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <Text style={[styles.detailedEventTime, { color: theme.textSecondary }]}>
                       {evt.startTime}{evt.endTime ? ` - ${evt.endTime}` : ''}
                     </Text>
+                    {evt.source === 'google' && (
+                      <View style={[styles.googleBadge, { backgroundColor: '#4285F4' }]}>
+                        <Text style={styles.googleBadgeText}>Google</Text>
+                      </View>
+                    )}
                     {evt.reminderMinutes > 0 && (
                       <View style={[styles.reminderPill, { backgroundColor: theme.chipBg }]}>
-                        <Bell size={10} color={theme.accent} />
                         <Text style={[styles.reminderPillText, { color: theme.textMain }]}>
                           {evt.reminderMinutes}m before
                         </Text>
@@ -269,7 +307,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         )}
 
         {/* Tasks for this day */}
-        <Text style={[styles.sectionSubtitle, { color: theme.textMuted, marginTop: 8 }]}>
+        <Text style={[styles.sectionSubtitle, { color: theme.textMuted, marginTop: 6 }]}>
           Tasks ({selectedDateTasks.length})
         </Text>
         {selectedDateTasks.length > 0 ? (
@@ -299,6 +337,37 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </Text>
         )}
       </View>
+
+      {/* Day Details Popup Modal (Opened on tapping any day cell) */}
+      <DayDetailsModal
+        theme={theme}
+        isOpen={isDayPopupOpen}
+        dateStr={selectedCellDate}
+        todayDateStr={todayDateStr}
+        tasks={selectedDateTasks}
+        events={selectedDateEvents}
+        onClose={() => setIsDayPopupOpen(false)}
+        onOpenTaskDetails={onOpenTaskDetails}
+        onStatusChange={onStatusChange}
+        onMoveTask={onMoveTask}
+        onAddTask={(d) => {
+          if (onAddTask) {
+            onAddTask(d);
+          }
+        }}
+        onAddEvent={(d) => onAddEvent(d)}
+        onDeleteEvent={onDeleteEvent}
+      />
+
+      {/* Google Calendar Sync Modal */}
+      <SyncGoogleCalendarModal
+        visible={isSyncModalOpen}
+        theme={theme}
+        onClose={() => setIsSyncModalOpen(false)}
+        onSyncComplete={() => {
+          onRefreshEvents?.();
+        }}
+      />
     </ScrollView>
   );
 };
@@ -311,13 +380,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 90,
-    gap: 10,
+    gap: 12,
   },
   headerBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1,
   },
@@ -326,13 +396,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  headerCenter: {
+  centerGroup: {
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   monthTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   centerActions: {
     flexDirection: 'row',
@@ -340,14 +411,27 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   todayJumpBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 8,
     borderWidth: 1,
   },
   todayJumpText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
+  },
+  syncGoogleTopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  syncGoogleTopText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   addEventTopBtn: {
     flexDirection: 'row',
@@ -358,11 +442,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   addEventTopText: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
   },
   weekLabelsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 4,
   },
   weekLabelCol: {
     flex: 1,
@@ -371,17 +457,18 @@ const styles = StyleSheet.create({
   weekLabelText: {
     fontSize: 11,
     fontWeight: '700',
+    textTransform: 'uppercase',
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     borderRadius: 14,
+    borderWidth: 1,
     overflow: 'hidden',
-    borderWidth: 0.5,
   },
   cell: {
     width: '14.28%',
-    height: 52,
+    aspectRatio: 1,
     padding: 3,
     justifyContent: 'space-between',
   },
@@ -394,41 +481,46 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   todayTag: {
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
     borderRadius: 3,
   },
   todayTagText: {
-    fontSize: 6,
+    fontSize: 7,
     fontWeight: '900',
+    letterSpacing: 0.5,
   },
   dotsRow: {
     flexDirection: 'row',
     gap: 2,
+    alignItems: 'center',
   },
   eventDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   taskDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   selectedDayDetails: {
     borderRadius: 14,
     borderWidth: 1,
     padding: 12,
-    gap: 6,
+    gap: 8,
   },
   selectedDayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    paddingBottom: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   selectedDayTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
   },
   smallAddEventBtn: {
@@ -437,7 +529,7 @@ const styles = StyleSheet.create({
     gap: 3,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   smallAddEventText: {
     fontSize: 10,
@@ -447,18 +539,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   dayEventsList: {
     gap: 6,
   },
   detailedEventCard: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderLeftWidth: 3,
+    padding: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderLeftWidth: 4,
   },
   detailedEventInfo: {
     flex: 1,
@@ -467,20 +560,26 @@ const styles = StyleSheet.create({
   eventTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   detailedEventTime: {
     fontSize: 10,
     fontWeight: '600',
   },
+  googleBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  googleBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
   reminderPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
     paddingHorizontal: 5,
     paddingVertical: 1,
-    borderRadius: 6,
-    marginLeft: 4,
+    borderRadius: 4,
   },
   reminderPillText: {
     fontSize: 9,
@@ -494,12 +593,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   deleteEventBtn: {
-    padding: 6,
-  },
-  emptySectionText: {
-    fontSize: 11,
-    fontStyle: 'italic',
-    paddingVertical: 4,
+    padding: 4,
   },
   dayTasksList: {
     gap: 4,
@@ -507,10 +601,11 @@ const styles = StyleSheet.create({
   simpleTaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    padding: 8,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
     borderWidth: 1,
+    gap: 6,
   },
   taskKeyBadge: {
     fontSize: 10,
@@ -519,11 +614,16 @@ const styles = StyleSheet.create({
   },
   taskTitleRow: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   taskStatusMini: {
     fontSize: 9,
     fontWeight: '700',
+  },
+  emptySectionText: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    paddingVertical: 4,
   },
 });

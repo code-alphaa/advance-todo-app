@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Text } from './ScaledText';
-import { Calendar as DayIcon, CalendarDays, Kanban, Calendar as CalIcon, Plus } from 'lucide-react-native';
+import { Calendar as DayIcon, CalendarDays, Calendar as CalIcon, Plus } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 
 interface BottomNavProps {
   theme: ThemeColors;
-  currentView: 'day' | 'weekly' | 'kanban' | 'calendar';
-  onViewChange: (view: 'day' | 'weekly' | 'kanban' | 'calendar') => void;
+  currentView: 'day' | 'weekly' | 'calendar';
+  onViewChange: (view: 'day' | 'weekly' | 'calendar') => void;
   onOpenCreate: () => void;
 }
 
@@ -20,8 +20,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const tabs = [
     { id: 'day', label: 'Today', icon: DayIcon },
     { id: 'weekly', label: '7 Days', icon: CalendarDays },
-    { id: 'kanban', label: 'Kanban', icon: Kanban },
-    { id: 'calendar', label: 'Cal', icon: CalIcon },
+    { id: 'calendar', label: 'Calendar', icon: CalIcon },
   ] as const;
 
   return (
@@ -101,26 +100,26 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
     paddingVertical: 5,
-    borderRadius: 32,
+    paddingHorizontal: 8,
+    borderRadius: 999,
     borderWidth: 1,
-    gap: 4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
     elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    gap: 4,
   },
   tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    gap: 6,
   },
   tabLabel: {
-    fontSize: 11,
+    fontSize: 12,
   },
   createTab: {
     width: 44,
@@ -128,10 +127,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 4,
+    elevation: 4,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 5,
+    marginLeft: 4,
   },
 });

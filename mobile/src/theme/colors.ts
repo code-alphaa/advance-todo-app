@@ -54,26 +54,27 @@ export const darkTheme: ThemeColors = {
 
 export const lightTheme: ThemeColors = {
   isDark: false,
-  bgApp: '#FFFAF3',
-  bgCard: '#FFF2DB',
-  columnBg: '#FFEED0',
-  columnHeader: '#FFE5BF',
-  border: '#FFE5BF',
-  textMain: '#2A272A',
-  textSecondary: '#746F73',
-  textMuted: '#9B969A',
-  accent: '#F62440',
-  accentHover: '#DF1934',
-  accentSubtle: '#FEE8EC',
-  textOnAccent: '#FFFFFF',
-  chipBg: '#FFE5BF',
+  // Palette: #FDF8E1 (Cornsilk), #FDF4CB (Lemon Chiffon), #FCEFB4 (Vanilla), #FAE588 (Jasmine), #F9DC5C (Naples Yellow)
+  bgApp: '#FDF8E1',          // Cornsilk
+  bgCard: '#FFFFFF',         // Crisp White
+  columnBg: '#FDF4CB',       // Lemon Chiffon
+  columnHeader: '#FCEFB4',   // Vanilla
+  border: '#FAE588',         // Jasmine
+  textMain: '#1F1E1D',       // Dark Charcoal
+  textSecondary: '#5C5648',  // Olive Umber
+  textMuted: '#8F8778',      // Warm Muted Gray
+  accent: '#F9DC5C',         // Naples Yellow
+  accentHover: '#EBCB40',    // Naples Yellow hover
+  accentSubtle: '#FDF4CB',   // Lemon Chiffon Subtle
+  textOnAccent: '#1F1E1D',   // Dark Charcoal for clear contrast on Naples Yellow
+  chipBg: '#FCEFB4',         // Vanilla
   doneGreen: '#10B981',
   inProgressBlue: '#3B82F6',
   reviewPurple: '#A855F7',
-  todoGray: '#94A3B8',
+  todoGray: '#8F8778',
   urgentRed: '#EF4444',
   highOrange: '#F97316',
-  mediumYellow: '#EAB308',
+  mediumYellow: '#F9DC5C',   // Naples Yellow
   lowBlue: '#06B6D4',
-  modalBackdrop: 'rgba(0, 0, 0, 0.5)',
+  modalBackdrop: 'rgba(31, 30, 29, 0.5)',
 };

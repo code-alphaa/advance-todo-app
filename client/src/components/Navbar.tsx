@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Kanban,
   CalendarDays,
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -14,8 +13,8 @@ import {
 import { DayInfo } from '../types';
 
 interface NavbarProps {
-  currentView: 'day' | 'weekly' | 'kanban' | 'calendar';
-  onViewChange: (view: 'day' | 'weekly' | 'kanban' | 'calendar') => void;
+  currentView: 'day' | 'weekly' | 'calendar';
+  onViewChange: (view: 'day' | 'weekly' | 'calendar') => void;
   weekDays: DayInfo[];
   todayDateStr: string;
   todayDisplay: string;
@@ -165,17 +164,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>7 Days</span>
             </button>
 
-            <button
-              onClick={() => onViewChange('kanban')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                currentView === 'kanban'
-                  ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-main)]'
-              }`}
-            >
-              <Kanban className="w-3.5 h-3.5" />
-              <span>Kanban</span>
-            </button>
 
             <button
               onClick={() => onViewChange('calendar')}

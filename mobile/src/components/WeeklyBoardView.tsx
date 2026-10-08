@@ -19,6 +19,7 @@ interface WeeklyBoardViewProps {
   onOpenDetails: (task: ITask) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
   onOpenCreate?: (date: string) => void;
+  onMoveTask?: (id: string, shiftDays: number) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -31,6 +32,7 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
   events,
   onOpenDetails,
   onStatusChange,
+  onMoveTask,
 }) => {
   return (
     <ScrollView
@@ -126,6 +128,7 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
                   task={task}
                   onOpenDetails={onOpenDetails}
                   onStatusChange={onStatusChange}
+                  onMoveTask={onMoveTask}
                 />
               ))}
 

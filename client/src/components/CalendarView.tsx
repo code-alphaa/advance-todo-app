@@ -7,9 +7,11 @@ import {
   ChevronRight,
   Plus,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { IEvent, ITask } from '../types';
 import { formatDateToYYYYMMDD } from '../utils/dateUtils';
+import { SyncGoogleCalendarModal } from './SyncGoogleCalendarModal';
 
 interface CalendarViewProps {
   events: IEvent[];
@@ -17,6 +19,7 @@ interface CalendarViewProps {
   onAddEvent: (dateString: string) => void;
   onDeleteEvent: (id: string, title: string) => void;
   onOpenTaskDetails: (task: ITask) => void;
+  onRefreshEvents?: () => void;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -25,8 +28,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onAddEvent,
   onDeleteEvent,
   onOpenTaskDetails,
+  onRefreshEvents,
 }) => {
   const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -104,9 +109,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const dayHeaders = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
-    <div className="w-full space-y-4">
-      {/* Calendar Header Navigator: Arrow buttons positioned at starting and end of div */}
-      <div className="flex items-center justify-between gap-2 sm:gap-4 bg-[var(--bg-card)] p-2.5 sm:p-4 rounded-2xl border border-[var(--border-color)] shadow-xs">
+    <div className="flex-1 flex flex-col gap-4 max-w-7xl mx-auto w-full">
+      {/* Month Navigation & Action Bar */}
+      <div className="flex items-center justify-between bg-[var(--bg-card)] p-3 sm:p-4 rounded-2xl border border-[var(--border-color)] shadow-xs flex-wrap gap-3">
         {/* Starting: Previous Month Arrow Button */}
         <button
           onClick={prevMonth}
@@ -138,6 +143,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--column-header)] text-[var(--text-main)] hover:bg-[var(--accent-color)] hover:text-[var(--text-on-accent)] border border-[var(--border-color)] transition-all shadow-xs"
             >
               Today
+            </button>
+
+            <button
+              onClick={() => setIsSyncModalOpen(true)}
+              className="flex items-center gap-1.5 bg-[#4285F4] text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs hover:bg-[#3367D6] transition-colors"
+              title="Sync with Google Calendar"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Google Sync</span>
             </button>
 
             <button
@@ -178,68 +192,63 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           ))}
         </div>
 
-        {/* Day cells grid */}
-        <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-[var(--border-color)]">
-          {calendarDays.map((cell) => {
-            const dayEvents = events.filter((e) => e.eventDate === cell.dateString);
-            const dayTasks = tasks.filter((t) => t.assignedDate === cell.dateString);
+        {/* Days grid */}
+        <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-[var(--border-color)] bg-[var(--border-color)]/20">
+          {calendarDays.map((day) => {
+            const dayEvents = events.filter((e) => e.eventDate === day.dateString);
+            const dayTasks = tasks.filter((t) => t.assignedDate === day.dateString);
 
             return (
               <div
-                key={cell.dateString}
-                className={`min-h-[110px] sm:min-h-[135px] p-1.5 sm:p-2 flex flex-col justify-between transition-colors group relative ${
-                  !cell.isCurrentMonth
-                    ? 'bg-[var(--bg-app)]/60 opacity-60'
-                    : cell.isToday
-                    ? 'bg-[var(--accent-subtle)] ring-2 ring-inset ring-[var(--accent-color)] z-10 shadow-xs'
-                    : 'bg-[var(--bg-card)] hover:bg-[var(--column-bg)]/40'
-                }`}
+                key={day.dateString}
+                className={`min-h-[110px] sm:min-h-[135px] p-1.5 sm:p-2 flex flex-col justify-between transition-colors relative group ${
+                  day.isCurrentMonth
+                    ? 'bg-[var(--bg-card)] hover:bg-[var(--column-bg)]/60'
+                    : 'bg-[var(--bg-app)] opacity-40'
+                } ${day.isToday ? 'ring-2 ring-[var(--accent-color)] ring-inset' : ''}`}
               >
-                {/* Cell Header: Day Number, Today Badge & Add Quick Event */}
+                {/* Header inside cell */}
                 <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-xs font-extrabold transition-transform ${
-                        cell.isToday
-                          ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] shadow-md ring-2 ring-[var(--accent-color)]/30 scale-105'
-                          : 'text-[var(--text-main)]'
-                      }`}
-                    >
-                      {cell.dayNumber}
-                    </span>
-                    {cell.isToday && (
-                      <span className="text-[9px] font-black uppercase tracking-wider bg-[var(--accent-color)] text-[var(--text-on-accent)] px-1.5 py-0.5 rounded shadow-xs">
-                        Today
-                      </span>
-                    )}
-                  </div>
+                  <span
+                    className={`text-xs font-extrabold px-1.5 py-0.5 rounded-md ${
+                      day.isToday
+                        ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)]'
+                        : 'text-[var(--text-main)]'
+                    }`}
+                  >
+                    {day.dayNumber}
+                  </span>
 
                   <button
-                    onClick={() => onAddEvent(cell.dateString)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-opacity"
-                    title={`Add event on ${cell.dateString}`}
+                    onClick={() => onAddEvent(day.dateString)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-[var(--column-bg)] text-[var(--text-secondary)] hover:text-[var(--text-main)] transition-all"
+                    title={`Add event for ${day.dateString}`}
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                {/* Events & Tasks Badges Container */}
-                <div className="flex-1 space-y-1 overflow-y-auto max-h-[85px] scrollbar-none">
-                  {/* Calendar Events First */}
+                {/* Events list */}
+                <div className="flex-1 space-y-1 overflow-y-auto max-h-[85px] sm:max-h-[105px] pr-0.5">
                   {dayEvents.map((evt) => (
                     <div
                       key={evt._id}
-                      className="group/event relative flex items-center justify-between gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold text-white shadow-2xs truncate"
-                      style={{ backgroundColor: evt.color || '#F62440' }}
-                      title={`${evt.startTime} - ${evt.title} (${evt.reminderMinutes}m reminder)`}
+                      style={{
+                        backgroundColor: evt.color || '#4285F4',
+                      }}
+                      className="text-white text-[11px] font-semibold px-1.5 py-0.5 rounded-md flex items-center justify-between shadow-2xs group/event cursor-pointer hover:brightness-105 transition-all"
                     >
-                      <div className="flex items-center gap-1 min-w-0">
+                      <div className="flex items-center gap-1 truncate">
                         <Clock className="w-2.5 h-2.5 shrink-0 opacity-80" />
-                        <span className="text-[9px] opacity-90">{evt.startTime}</span>
                         <span className="truncate">{evt.title}</span>
                       </div>
 
-                      <div className="flex items-center gap-0.5 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0">
+                        {evt.source === 'google' && (
+                          <span className="bg-white/25 text-[8px] font-bold px-1 rounded-sm">
+                            G
+                          </span>
+                        )}
                         {evt.reminderMinutes > 0 && (
                           <span title={`Reminds ${evt.reminderMinutes}m before`}>
                             <Bell className="w-2.5 h-2.5 text-white/90" />
@@ -290,6 +299,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* Google Calendar Sync Modal */}
+      <SyncGoogleCalendarModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        onSyncSuccess={() => {
+          onRefreshEvents?.();
+        }}
+      />
     </div>
   );
 };

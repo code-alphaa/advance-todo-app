@@ -9,10 +9,12 @@ import {
   Platform,
 } from 'react-native';
 import { Text, TextInput } from './ScaledText';
-import { X } from 'lucide-react-native';
+import { X, Calendar as CalIcon, ArrowRight, FastForward } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { ReminderTimesEditor } from './ReminderTimesEditor';
-import { ITask, TaskStatus, TaskPriority, TaskType, DayInfo } from '../types';
+import { getStatusBadgeStyle, getPriorityBadgeStyle } from '../theme/badgeColors';
+import { addDaysToDateStr, formatDateToYYYYMMDD } from '../utils/dateUtils';
+import { ITask, TaskStatus, TaskPriority, DayInfo } from '../types/index';
 
 interface CreateTaskModalProps {
   theme: ThemeColors;
@@ -25,7 +27,6 @@ interface CreateTaskModalProps {
 
 const STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
 const PRIORITIES: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-const TYPES: TaskType[] = ['task', 'bug', 'story', 'epic'];
 
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   theme,
@@ -39,13 +40,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>('TODO');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
-  const [type, setType] = useState<TaskType>('task');
   const [assignedDate, setAssignedDate] = useState(defaultDate);
   const [estimatedHours, setEstimatedHours] = useState('1');
   const [remindersPerDay, setRemindersPerDay] = useState<number>(0);
   const [reminderTimes, setReminderTimes] = useState<string[]>([]);
-  const [labelInput, setLabelInput] = useState('');
-  const [labels, setLabels] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -54,24 +52,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       setDescription('');
       setStatus('TODO');
       setPriority('MEDIUM');
-      setType('task');
       setEstimatedHours('1');
       setRemindersPerDay(0);
       setReminderTimes([]);
-      setLabels([]);
     }
   }, [isOpen, defaultDate]);
-
-  const handleAddLabel = () => {
-    if (labelInput.trim() && !labels.includes(labelInput.trim())) {
-      setLabels([...labels, labelInput.trim()]);
-      setLabelInput('');
-    }
-  };
-
-  const handleRemoveLabel = (lbl: string) => {
-    setLabels(labels.filter((l) => l !== lbl));
-  };
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -80,15 +65,19 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       description: description.trim(),
       status,
       priority,
-      type,
+      type: 'task',
       assignedDate,
       estimatedHours: Number(estimatedHours) || 1,
       remindersPerDay,
       reminderTimes,
-      labels,
+      labels: [],
     });
     onClose();
   };
+
+  const todayStr = formatDateToYYYYMMDD(new Date());
+  const tomorrowStr = addDaysToDateStr(todayStr, 1);
+  const nextWeekStr = addDaysToDateStr(todayStr, 7);
 
   return (
     <Modal
@@ -105,8 +94,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           {/* Header */}
           <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
             <Text style={[styles.dialogTitle, { color: theme.textMain }]}>Create Task</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X size={18} color={theme.textMuted} />
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={24} color={theme.textMain} strokeWidth={2.4} />
             </TouchableOpacity>
           </View>
 
@@ -124,7 +113,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 placeholderTextColor={theme.textMuted}
                 value={title}
                 onChangeText={setTitle}
-                style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+                style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }] }
               />
             </View>
 
@@ -146,9 +135,57 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               />
             </View>
 
-            {/* Assigned Date Selector */}
+            {/* Assigned Date Selector + Quick Next Day / Next Week Options */}
             <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Assigned Day</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Assigned Day</Text>
+                <View style={styles.quickMovePills}>
+                  <TouchableOpacity
+                    onPress={() => setAssignedDate(tomorrowStr)}
+                    style={[
+                      styles.quickPill,
+                      {
+                        backgroundColor: assignedDate === tomorrowStr ? theme.accent : theme.bgApp,
+                        borderColor: assignedDate === tomorrowStr ? theme.accent : theme.border,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <ArrowRight size={10} color={assignedDate === tomorrowStr ? theme.textOnAccent : theme.textSecondary} />
+                    <Text
+                      style={[
+                        styles.quickPillText,
+                        { color: assignedDate === tomorrowStr ? theme.textOnAccent : theme.textSecondary },
+                      ]}
+                    >
+                      Next Day
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setAssignedDate(nextWeekStr)}
+                    style={[
+                      styles.quickPill,
+                      {
+                        backgroundColor: assignedDate === nextWeekStr ? theme.accent : theme.bgApp,
+                        borderColor: assignedDate === nextWeekStr ? theme.accent : theme.border,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <FastForward size={10} color={assignedDate === nextWeekStr ? theme.textOnAccent : theme.textSecondary} />
+                    <Text
+                      style={[
+                        styles.quickPillText,
+                        { color: assignedDate === nextWeekStr ? theme.textOnAccent : theme.textSecondary },
+                      ]}
+                    >
+                      Next Week
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {weekDays.map((d) => {
                   const isSelected = assignedDate === d.dateString;
@@ -192,12 +229,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               }}
             />
 
-            {/* Status Picker */}
+            {/* Status Picker with Distinct Colors */}
             <View style={styles.formGroup}>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Status</Text>
               <View style={styles.chipsRowWrap}>
                 {STATUSES.map((st) => {
                   const isSelected = status === st;
+                  const styleInfo = getStatusBadgeStyle(st, theme, isSelected);
+
                   return (
                     <TouchableOpacity
                       key={st}
@@ -205,8 +244,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
+                          backgroundColor: styleInfo.bg,
+                          borderColor: styleInfo.border,
                         },
                       ]}
                     >
@@ -214,12 +253,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         style={[
                           styles.chipText,
                           {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
+                            color: styleInfo.text,
                             fontWeight: isSelected ? '800' : '600',
                           },
                         ]}
                       >
-                        {st.replace('_', ' ')}
+                        {styleInfo.label}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -227,12 +266,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               </View>
             </View>
 
-            {/* Priority Picker */}
+            {/* Priority Picker with Distinct Colors */}
             <View style={styles.formGroup}>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Priority</Text>
               <View style={styles.chipsRowWrap}>
                 {PRIORITIES.map((pr) => {
                   const isSelected = priority === pr;
+                  const styleInfo = getPriorityBadgeStyle(pr, theme, isSelected);
+
                   return (
                     <TouchableOpacity
                       key={pr}
@@ -240,8 +281,8 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
+                          backgroundColor: styleInfo.bg,
+                          borderColor: styleInfo.border,
                         },
                       ]}
                     >
@@ -249,87 +290,17 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         style={[
                           styles.chipText,
                           {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
+                            color: styleInfo.text,
                             fontWeight: isSelected ? '800' : '600',
                           },
                         ]}
                       >
-                        {pr}
+                        {styleInfo.label}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
-            </View>
-
-            {/* Type Picker */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Type</Text>
-              <View style={styles.chipsRowWrap}>
-                {TYPES.map((tp) => {
-                  const isSelected = type === tp;
-                  return (
-                    <TouchableOpacity
-                      key={tp}
-                      onPress={() => setType(tp)}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
-                            fontWeight: isSelected ? '800' : '600',
-                          },
-                        ]}
-                      >
-                        {tp.toUpperCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Labels */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Labels</Text>
-              <View style={styles.labelInputRow}>
-                <TextInput
-                  placeholder="e.g. Frontend, API..."
-                  placeholderTextColor={theme.textMuted}
-                  value={labelInput}
-                  onChangeText={setLabelInput}
-                  onSubmitEditing={handleAddLabel}
-                  style={[styles.input, { flex: 1, color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-                />
-                <TouchableOpacity
-                  onPress={handleAddLabel}
-                  style={[styles.addLabelBtn, { backgroundColor: theme.accent }]}
-                >
-                  <Text style={[styles.addLabelText, { color: theme.textOnAccent }]}>Add</Text>
-                </TouchableOpacity>
-              </View>
-              {labels.length > 0 && (
-                <View style={styles.labelsTagsRow}>
-                  {labels.map((lbl) => (
-                    <TouchableOpacity
-                      key={lbl}
-                      onPress={() => handleRemoveLabel(lbl)}
-                      style={[styles.tagPill, { backgroundColor: theme.chipBg, borderColor: theme.border }]}
-                    >
-                      <Text style={[styles.tagText, { color: theme.textMain }]}>{lbl}</Text>
-                      <X size={10} color={theme.textMuted} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
             </View>
           </ScrollView>
 
@@ -348,7 +319,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               style={[styles.submitBtn, { backgroundColor: theme.accent }]}
               activeOpacity={0.8}
             >
-              <Text style={[styles.submitBtnText, { color: theme.textOnAccent }]}>Create Issue</Text>
+              <Text style={[styles.submitBtnText, { color: theme.textOnAccent }]}>Create Task</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -361,15 +332,13 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    alignItems: 'center',
   },
   dialog: {
-    width: '100%',
-    maxHeight: '90%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderWidth: 1,
-    overflow: 'hidden',
+    borderBottomWidth: 0,
+    maxHeight: '90%',
   },
   dialogHeader: {
     flexDirection: 'row',
@@ -377,14 +346,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   dialogTitle: {
     fontSize: 16,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   closeBtn: {
-    padding: 6,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dialogBody: {
     paddingHorizontal: 20,
@@ -394,65 +368,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   formGroup: {
-    gap: 6,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 2,
-  },
-  chipsRowWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  chipText: {
-    fontSize: 12,
-  },
-  labelInputRow: {
+  sectionHeaderRow: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  addLabelBtn: {
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  addLabelText: {
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  labelsTagsRow: {
+  quickMovePills: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 6,
-    marginTop: 6,
   },
-  tagPill: {
+  quickPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -461,22 +389,62 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
   },
-  tagText: {
+  quickPillText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  textArea: {
+    minHeight: 70,
+    textAlignVertical: 'top',
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  chipsRowWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipText: {
+    fontSize: 12,
   },
   dialogFooter: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 12,
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderTopWidth: 1,
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   cancelBtn: {
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
   },
   cancelBtnText: {
@@ -484,9 +452,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitBtn: {
-    paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   submitBtnText: {
     fontSize: 13,

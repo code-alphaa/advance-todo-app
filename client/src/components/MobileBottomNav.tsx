@@ -1,9 +1,9 @@
 import React from 'react';
-import { Calendar as DayIcon, CalendarDays, Kanban, Calendar as CalIcon, Plus } from 'lucide-react';
+import { Calendar as DayIcon, CalendarDays, Calendar as CalIcon, Plus } from 'lucide-react';
 
 interface MobileBottomNavProps {
-  currentView: 'day' | 'weekly' | 'kanban' | 'calendar';
-  onViewChange: (view: 'day' | 'weekly' | 'kanban' | 'calendar') => void;
+  currentView: 'day' | 'weekly' | 'calendar';
+  onViewChange: (view: 'day' | 'weekly' | 'calendar') => void;
   onOpenCreate: () => void;
 }
 
@@ -40,19 +40,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <span className="text-[11px]">7 Days</span>
       </button>
 
-      {/* Kanban View */}
-      <button
-        onClick={() => onViewChange('kanban')}
-        className={`flex items-center gap-1 py-1.5 px-2.5 rounded-full text-xs transition-all ${
-          currentView === 'kanban'
-            ? 'bg-[var(--accent-color)] text-[var(--text-on-accent)] font-bold shadow-xs'
-            : 'text-[var(--text-secondary)] hover:text-[var(--text-main)] hover:bg-[var(--column-bg)] font-medium'
-        }`}
-      >
-        <Kanban className="w-3.5 h-3.5" />
-        <span className="text-[11px]">Kanban</span>
-      </button>
-
       {/* Calendar View */}
       <button
         onClick={() => onViewChange('calendar')}
@@ -63,7 +50,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         }`}
       >
         <CalIcon className="w-3.5 h-3.5" />
-        <span className="text-[11px]">Cal</span>
+        <span className="text-[11px]">Calendar</span>
       </button>
 
       {/* Aligned Create Action Button */}

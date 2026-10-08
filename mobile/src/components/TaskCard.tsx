@@ -2,24 +2,21 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';
 import {
-  CheckCircle2,
-  Clock,
   RotateCw,
-  AlertCircle,
-  Bookmark,
   CheckSquare,
-  ChevronRight,
-  MoreVertical,
-  Bell,
+  ArrowRight,
+  FastForward,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
-import { ITask, TaskStatus, DayInfo } from '../types';
+import { getStatusBadgeStyle, getPriorityBadgeStyle } from '../theme/badgeColors';
+import { ITask, TaskStatus } from '../types/index';
 
 interface TaskCardProps {
   theme: ThemeColors;
   task: ITask;
   onOpenDetails: (task: ITask) => void;
   onStatusChange: (id: string, newStatus: TaskStatus) => void;
+  onMoveTask?: (id: string, shiftDays: number) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -27,38 +24,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onOpenDetails,
   onStatusChange,
+  onMoveTask,
 }) => {
   const isDone = task.status === 'DONE';
 
-  const getStatusColor = (status: TaskStatus) => {
-    switch (status) {
-      case 'DONE':
-        return theme.doneGreen;
-      case 'IN_PROGRESS':
-        return theme.inProgressBlue;
-      case 'IN_REVIEW':
-        return theme.reviewPurple;
-      case 'TODO':
-      default:
-        return theme.todoGray;
-    }
-  };
+  const statusStyle = getStatusBadgeStyle(task.status, theme, true);
+  const priorityStyle = getPriorityBadgeStyle(task.priority, theme, true);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'URGENT':
-        return theme.urgentRed;
-      case 'HIGH':
-        return theme.highOrange;
-      case 'MEDIUM':
-        return theme.mediumYellow;
-      case 'LOW':
-      default:
-        return theme.lowBlue;
-    }
-  };
-
-  const completedSubtasks = task.subtasks.filter((s) => s.completed).length;
+  const completedSubtasks = task.subtasks ? task.subtasks.filter((s) => s.completed).length : 0;
 
   const toggleStatus = () => {
     const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
@@ -74,29 +47,22 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         {
           backgroundColor: theme.bgCard,
           borderColor: theme.border,
-          borderLeftColor: getStatusColor(task.status),
+          borderLeftColor: statusStyle.bg,
           borderLeftWidth: 4,
         },
       ]}
       activeOpacity={0.8}
     >
-      {/* Top Header: Key, Type, Rollover indicator, and Daily Reminders badge */}
+      {/* Top Header: Key, Rollover indicator, Daily Reminders badge, and Quick Move Actions */}
       <View style={styles.topRow}>
         <View style={styles.keyRow}>
           <Text style={[styles.keyText, { color: theme.textSecondary }]}>{task.key}</Text>
-          <View style={[styles.typeBadge, { backgroundColor: theme.columnBg }]}>
-            <Text style={[styles.typeText, { color: theme.textMuted }]}>
-              {task.type.toUpperCase()}
-            </Text>
-          </View>
-        </View>
 
-        <View style={styles.badgesRow}>
+          {/* Daily Reminders Count badge (without bell icon) */}
           {Boolean(task.remindersPerDay && task.remindersPerDay > 0 && !isDone) && (
             <View style={[styles.reminderBadge, { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.3)' }]}>
-              <Bell size={10} color="#3b82f6" />
               <Text style={[styles.reminderBadgeText, { color: '#3b82f6' }]}>
-                {task.remindersPerDay}/d
+                {task.remindersPerDay}/day
               </Text>
             </View>
           )}
@@ -110,6 +76,37 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             </View>
           )}
         </View>
+
+        {/* Quick Move to Next Day / Next Week */}
+        {onMoveTask && (
+          <View style={styles.quickMoveRow}>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onMoveTask(task._id, 1);
+              }}
+              style={[styles.quickMoveBtn, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
+              activeOpacity={0.7}
+              accessibilityLabel="Move to next day"
+            >
+              <ArrowRight size={10} color={theme.accent} />
+              <Text style={[styles.quickMoveText, { color: theme.textSecondary }]}>+1d</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation?.();
+                onMoveTask(task._id, 7);
+              }}
+              style={[styles.quickMoveBtn, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
+              activeOpacity={0.7}
+              accessibilityLabel="Move to next week"
+            >
+              <FastForward size={10} color={theme.accent} />
+              <Text style={[styles.quickMoveText, { color: theme.textSecondary }]}>+7d</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Task Title */}
@@ -124,35 +121,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         {task.title}
       </Text>
 
-      {/* Labels */}
-      {task.labels && task.labels.length > 0 && (
-        <View style={styles.labelsRow}>
-          {task.labels.slice(0, 3).map((lbl, idx) => (
-            <View key={idx} style={[styles.labelChip, { backgroundColor: theme.chipBg, borderColor: theme.border }]}>
-              <Text style={[styles.labelText, { color: theme.textMuted }]}>{lbl}</Text>
-            </View>
-          ))}
-          {task.labels.length > 3 && (
-            <Text style={[styles.moreLabels, { color: theme.textMuted }]}>
-              +{task.labels.length - 3}
-            </Text>
-          )}
-        </View>
-      )}
-
-      {/* Footer Info: Priority, Subtasks, Status Switcher */}
+      {/* Footer Info: Priority with distinct color, Subtasks, Status Switcher with distinct color */}
       <View style={styles.footerRow}>
         <View style={styles.metaRow}>
-          {/* Priority Pill */}
-          <View style={[styles.priorityPill, { borderColor: getPriorityColor(task.priority) }]}>
-            <View style={[styles.priorityDot, { backgroundColor: getPriorityColor(task.priority) }]} />
-            <Text style={[styles.priorityText, { color: getPriorityColor(task.priority) }]}>
-              {task.priority}
+          {/* Distinct Colored Priority Badge */}
+          <View style={[styles.priorityBadge, { backgroundColor: priorityStyle.bg }]}>
+            <Text style={[styles.priorityText, { color: priorityStyle.text }]}>
+              {priorityStyle.label}
             </Text>
           </View>
 
           {/* Subtask progress */}
-          {task.subtasks.length > 0 && (
+          {task.subtasks && task.subtasks.length > 0 && (
             <View style={styles.subtaskRow}>
               <CheckSquare size={11} color={theme.textMuted} />
               <Text style={[styles.subtaskText, { color: theme.textMuted }]}>
@@ -162,15 +142,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           )}
         </View>
 
-        {/* Status Toggle Button */}
+        {/* Status Toggle Button with Distinct Color */}
         <TouchableOpacity
           onPress={toggleStatus}
-          style={[styles.statusButton, { backgroundColor: theme.columnBg, borderColor: theme.border }]}
+          style={[styles.statusButton, { backgroundColor: statusStyle.bg }]}
           activeOpacity={0.7}
         >
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(task.status) }]} />
-          <Text style={[styles.statusButtonText, { color: theme.textMain }]}>
-            {task.status.replace('_', ' ')}
+          <Text style={[styles.statusButtonText, { color: statusStyle.text }]}>
+            {statusStyle.label}
           </Text>
         </TouchableOpacity>
       </View>
@@ -201,124 +180,95 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
-  typeBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  typeText: {
-    fontSize: 9,
-    fontWeight: '700',
-  },
   badgesRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   reminderBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
     paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
     borderWidth: 1,
   },
   reminderBadgeText: {
     fontSize: 9,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   rolloverBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
   rolloverText: {
     fontSize: 9,
     fontWeight: '700',
   },
+  quickMoveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  quickMoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  quickMoveText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   title: {
     fontSize: 14,
     fontWeight: '600',
-    lineHeight: 18,
-  },
-  labelsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  labelChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  labelText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  moreLabels: {
-    fontSize: 10,
-    fontWeight: '600',
+    lineHeight: 19,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 2,
+    paddingTop: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  priorityPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
+  priorityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
   },
-  priorityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
   priorityText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
+    textTransform: 'uppercase',
   },
   subtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   subtaskText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
   },
   statusButton: {
-    flexDirection: 'row',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    justifyContent: 'center',
   },
   statusButtonText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

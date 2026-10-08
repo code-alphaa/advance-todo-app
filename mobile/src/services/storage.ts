@@ -314,16 +314,17 @@ export const offlineStorage = {
   },
 
   // THEME
-  async getTheme(): Promise<'dark' | 'light'> {
+  async getTheme(): Promise<'dark' | 'light' | 'system'> {
     try {
       const saved = await AsyncStorage.getItem(STORAGE_KEYS.THEME);
-      return saved === 'light' ? 'light' : 'dark';
+      if (saved === 'dark' || saved === 'light') return saved;
+      return 'system';
     } catch {
-      return 'dark';
+      return 'system';
     }
   },
 
-  async saveTheme(theme: 'dark' | 'light'): Promise<void> {
+  async saveTheme(theme: 'dark' | 'light' | 'system'): Promise<void> {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.THEME, theme);
     } catch (e) {

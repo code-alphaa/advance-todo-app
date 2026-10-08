@@ -16,12 +16,15 @@ import {
   Square,
   Plus,
   RotateCw,
+  ArrowRight,
+  FastForward,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { ReminderTimesEditor } from './ReminderTimesEditor';
+import { getStatusBadgeStyle, getPriorityBadgeStyle } from '../theme/badgeColors';
 import { getTaskReminderTimes, countPassedTimes } from '../utils/reminderTimes';
-import { formatDateToYYYYMMDD } from '../utils/dateUtils';
-import { ITask, ISubtask, TaskStatus, TaskPriority, DayInfo } from '../types';
+import { formatDateToYYYYMMDD, addDaysToDateStr } from '../utils/dateUtils';
+import { ITask, ISubtask, TaskStatus, TaskPriority, DayInfo } from '../types/index';
 
 interface TaskDetailModalProps {
   theme: ThemeColors;
@@ -99,6 +102,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
     onUpdate(task._id, { subtasks: updated });
   };
 
+  const handleShiftDate = (days: number) => {
+    const baseDate = assignedDate || task.assignedDate || formatDateToYYYYMMDD(new Date());
+    const nextDate = addDaysToDateStr(baseDate, days);
+    setAssignedDate(nextDate);
+    onUpdate(task._id, { assignedDate: nextDate });
+  };
+
   const handleSave = () => {
     onUpdate(task._id, {
       title: title.trim(),
@@ -129,15 +139,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
         style={[styles.backdrop, { backgroundColor: theme.modalBackdrop }]}
       >
         <View style={[styles.dialog, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
-          {/* Header */}
+          {/* Header (No Type Badge) */}
           <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
             <View style={styles.headerLeft}>
               <View style={[styles.keyBadge, { backgroundColor: theme.accent }]}>
                 <Text style={[styles.keyText, { color: theme.textOnAccent }]}>{task.key}</Text>
               </View>
-              <Text style={[styles.typeText, { color: theme.textMuted }]}>
-                {task.type.toUpperCase()}
-              </Text>
             </View>
 
             <View style={styles.headerRight}>
@@ -150,8 +157,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               >
                 <Trash2 size={16} color={theme.urgentRed} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} style={styles.iconBtn}>
-                <X size={18} color={theme.textMuted} />
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <X size={24} color={theme.textMain} strokeWidth={2.4} />
               </TouchableOpacity>
             </View>
           </View>
@@ -162,6 +169,30 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             contentContainerStyle={styles.dialogBodyContent}
             showsVerticalScrollIndicator={false}
           >
+            {/* Quick Move Row: Next Day & Next Week */}
+            <View style={styles.quickShiftContainer}>
+              <Text style={[styles.quickShiftLabel, { color: theme.textSecondary }]}>Quick Move Date:</Text>
+              <View style={styles.quickShiftButtons}>
+                <TouchableOpacity
+                  onPress={() => handleShiftDate(1)}
+                  style={[styles.quickShiftBtn, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
+                  activeOpacity={0.7}
+                >
+                  <ArrowRight size={12} color={theme.accent} />
+                  <Text style={[styles.quickShiftBtnText, { color: theme.textMain }]}>Next Day (+1d)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleShiftDate(7)}
+                  style={[styles.quickShiftBtn, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
+                  activeOpacity={0.7}
+                >
+                  <FastForward size={12} color={theme.accent} />
+                  <Text style={[styles.quickShiftBtnText, { color: theme.textMain }]}>Next Week (+7d)</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Title */}
             <View style={styles.formGroup}>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Title</Text>
@@ -190,12 +221,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               />
             </View>
 
-            {/* Status */}
+            {/* Status with Distinct Colored Badges */}
             <View style={styles.formGroup}>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Status</Text>
               <View style={styles.chipsRowWrap}>
                 {STATUSES.map((st) => {
                   const isSelected = status === st;
+                  const styleInfo = getStatusBadgeStyle(st, theme, isSelected);
+
                   return (
                     <TouchableOpacity
                       key={st}
@@ -206,8 +239,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
+                          backgroundColor: styleInfo.bg,
+                          borderColor: styleInfo.border,
                         },
                       ]}
                     >
@@ -215,12 +248,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         style={[
                           styles.chipText,
                           {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
+                            color: styleInfo.text,
                             fontWeight: isSelected ? '800' : '600',
                           },
                         ]}
                       >
-                        {st.replace('_', ' ')}
+                        {styleInfo.label}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -236,7 +269,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               onChange={(count, times) => {
                 setRemindersPerDay(count);
                 setReminderTimes(times);
-                // Times already passed today count as sent so editing doesn't trigger an instant reminder
                 const todayStr = formatDateToYYYYMMDD(new Date());
                 onUpdate(task._id, {
                   remindersPerDay: count,
@@ -256,12 +288,14 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               }
             />
 
-            {/* Priority */}
+            {/* Priority with Distinct Colored Badges */}
             <View style={styles.formGroup}>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Priority</Text>
               <View style={styles.chipsRowWrap}>
                 {PRIORITIES.map((pr) => {
                   const isSelected = priority === pr;
+                  const styleInfo = getPriorityBadgeStyle(pr, theme, isSelected);
+
                   return (
                     <TouchableOpacity
                       key={pr}
@@ -272,8 +306,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
+                          backgroundColor: styleInfo.bg,
+                          borderColor: styleInfo.border,
                         },
                       ]}
                     >
@@ -281,12 +315,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         style={[
                           styles.chipText,
                           {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
+                            color: styleInfo.text,
                             fontWeight: isSelected ? '800' : '600',
                           },
                         ]}
                       >
-                        {pr}
+                        {styleInfo.label}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -296,7 +330,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
             {/* Assigned Day (Reassign to Any Day) */}
             <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Assigned Day</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
+                Assigned Day: {assignedDate}
+              </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
                 {weekDays.map((d) => {
                   const isSelected = assignedDate === d.dateString;
@@ -459,17 +495,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   dialog: {
-    maxHeight: '90%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
+    borderBottomWidth: 0,
+    maxHeight: '92%',
   },
   dialogHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -479,87 +517,125 @@ const styles = StyleSheet.create({
   keyBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   keyText: {
     fontSize: 12,
-    fontWeight: '900',
-  },
-  typeText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   iconBtn: {
-    padding: 4,
+    padding: 6,
+  },
+  closeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dialogBody: {
-    flexGrow: 0,
+    paddingHorizontal: 20,
   },
   dialogBodyContent: {
-    padding: 16,
-    gap: 12,
+    paddingVertical: 14,
+    gap: 14,
+  },
+  quickShiftContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 211, 149, 0.2)',
+  },
+  quickShiftLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  quickShiftButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickShiftBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  quickShiftBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   formGroup: {
-    gap: 6,
+    gap: 8,
   },
   inputLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    borderWidth: 1,
     borderRadius: 10,
+    borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
+    paddingVertical: 10,
+    fontSize: 14,
   },
   textArea: {
-    height: 60,
+    minHeight: 65,
     textAlignVertical: 'top',
-  },
-  chipsRowWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
   },
   chipsRow: {
     flexDirection: 'row',
     gap: 6,
     paddingVertical: 2,
   },
+  chipsRowWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
   chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 12,
   },
   subtaskHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   subtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   checkboxTouchable: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flex: 1,
   },
   subtaskTitle: {
@@ -569,48 +645,54 @@ const styles = StyleSheet.create({
   addSubtaskRow: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
+    marginTop: 6,
   },
   addSubtaskBtn: {
     paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 10,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   rowTwoCols: {
     flexDirection: 'row',
     gap: 12,
   },
   auditBox: {
-    padding: 10,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
+    padding: 12,
     gap: 6,
   },
   auditHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   auditTitle: {
     fontSize: 11,
     fontWeight: '700',
+    textTransform: 'uppercase',
   },
   auditItem: {
     paddingLeft: 4,
   },
   auditText: {
-    fontSize: 10,
+    fontSize: 11,
   },
   dialogFooter: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 12,
-    padding: 16,
-    borderTopWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   cancelBtn: {
-    paddingVertical: 8,
     paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
   },
@@ -619,8 +701,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   saveBtnText: {

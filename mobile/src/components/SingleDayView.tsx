@@ -28,6 +28,7 @@ interface SingleDayViewProps {
   onOpenDetails: (task: ITask) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
   onDeleteTask: (task: ITask) => void;
+  onMoveTask?: (id: string, shiftDays: number) => void;
   onQuickAddTask?: (date: string, title: string) => void;
   onOpenAddEvent: (date: string) => void;
   headerContent?: React.ReactNode;
@@ -43,6 +44,7 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
   onOpenDetails,
   onStatusChange,
   onDeleteTask,
+  onMoveTask,
   onOpenAddEvent,
   headerContent,
 }) => {
@@ -328,7 +330,6 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
                   </View>
                   {evt.reminderMinutes > 0 && (
                     <View style={styles.reminderTag}>
-                      <Bell size={10} color="#FFF" />
                       <Text style={styles.reminderTagText}>{evt.reminderMinutes}m</Text>
                     </View>
                   )}
@@ -351,6 +352,7 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
                 task={task}
                 onOpenDetails={onOpenDetails}
                 onStatusChange={onStatusChange}
+                onMoveTask={onMoveTask}
               />
             </SwipeToDelete>
           ))}
