@@ -25,96 +25,49 @@
 
 :root.dark,
 html.dark {
-  /* Dark Theme from user palette: #37353E, #44444E, #715A5A, #D3DAD9 */
-  --bg-app: #37353E;
-  --bg-surface: #44444E;
-  --bg-card: #37353E;
-  --bg-card-hover: #403E49;
-  --border-color: #715A5A;
-  --border-hover: #8D7171;
-  --accent-color: #D3DAD9;
-  --accent-hover: #E3E8E7;
-  --accent-subtle: #4D4548;
-  --text-main: #D3DAD9;
-  --text-secondary: #BAC2C1;
-  --text-muted: #8E8A91;
-  --text-on-accent: #232228;
-  --column-bg: #44444E;
-  --column-header: #3D3D47;
-  --chip-bg: #37353E;
-  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
+  /* Dark Theme from user palette: #EFD395, #A4A4A4, #777674, #4B4A48, #262625, #131313 */
+  --bg-app: #131313;
+  --bg-surface: #262625;
+  --bg-card: #262625;
+  --bg-card-hover: #30302E;
+  --border-color: #4B4A48;
+  --border-hover: #777674;
+  --accent-color: #EFD395;
+  --accent-hover: #F7E4B8;
+  --accent-subtle: rgba(239, 211, 149, 0.15);
+  --text-main: #F5F5F4;
+  --text-secondary: #A4A4A4;
+  --text-muted: #777674;
+  --text-on-accent: #131313;
+  --column-bg: #1B1B1B;
+  --column-header: #262625;
+  --chip-bg: #262625;
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 html,
 body {
   background-color: var(--bg-app);
   color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   margin: 0;
   padding: 0;
-  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  overflow-x: clip;
 }
 
-/* Disable background scroll across all popups and modals */
-body.modal-open,
-html.modal-open {
-  overflow: hidden !important;
-  overscroll-behavior: contain !important;
-  touch-action: none !important;
-  height: 100% !important;
-}
-
-/* Ensure modal overlays and containers contain their scrolling */
-.modal-overlay,
-.modal-container,
-.MuiDialog-root,
-.MuiDialog-container,
-.MuiDialog-paper,
-.MuiPopover-root,
-.MuiPopover-paper {
-  overscroll-behavior: contain !important;
-}
-
-/* Hide scrollbars globally across all elements while keeping full scrollability */
-html,
-body,
-* {
-  scrollbar-width: none !important; /* Firefox */
-  -ms-overflow-style: none !important; /* IE and Edge */
-}
-
-*::-webkit-scrollbar,
+/* Custom scrollbars that adapt to themes */
 ::-webkit-scrollbar {
-  display: none !important; /* Chrome, Safari, WebKit */
-  width: 0 !important;
-  height: 0 !important;
+  width: 6px;
+  height: 6px;
 }
-
-/* Scrollbar none utility */
-.scrollbar-none {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-.scrollbar-none::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 9999px;
 }
-
-/* Jira style card dragging indicator */
-.dragging-card {
-  opacity: 0.85;
-  transform: rotate(2deg) scale(1.02);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
-  cursor: grabbing !important;
-}
-
-.drop-target-active {
-  outline: 2px dashed var(--accent-color);
-  background-color: var(--accent-subtle) !important;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

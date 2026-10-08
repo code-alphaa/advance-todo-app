@@ -28,7 +28,6 @@ import {
 } from './src/utils/dateUtils';
 import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTimes';
 
-import { Header } from './src/components/Header';
 import { WeekNavigator } from './src/components/WeekNavigator';
 import { StatsBanner } from './src/components/StatsBanner';
 import { BottomNav } from './src/components/BottomNav';
@@ -39,7 +38,6 @@ import { CalendarView } from './src/components/CalendarView';
 import { CreateTaskModal } from './src/components/CreateTaskModal';
 import { CreateEventModal } from './src/components/CreateEventModal';
 import { TaskDetailModal } from './src/components/TaskDetailModal';
-import { NotificationDropdown, DropdownAnchor } from './src/components/NotificationDropdown';
 import { ConfirmModal } from './src/components/ConfirmModal';
 import { InAppNotificationBanner } from './src/components/InAppNotificationBanner';
 
@@ -93,9 +91,6 @@ export default function App() {
 
   const [selectedTask, setSelectedTask] = useState<ITask | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-
-  const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
-  const [notifAnchor, setNotifAnchor] = useState<DropdownAnchor | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     id: string;
     type: 'task' | 'event';
@@ -433,36 +428,24 @@ export default function App() {
             onDismiss={() => setActiveBanner(null)}
           />
 
-          {/* Top Header */}
-          <Header
-            theme={theme}
-            todayDisplay={todayDisplay}
-            unreadCount={unreadCount}
-            onToggleTheme={handleToggleTheme}
-            onIncreaseFont={() => handleChangeFontScale(1)}
-            onDecreaseFont={() => handleChangeFontScale(-1)}
-            onOpenNotifications={(anchor) => {
-              setNotifAnchor(anchor);
-              setIsNotifModalOpen(true);
-            }}
-          />
-
-          {/* Week Navigator */}
-          <WeekNavigator
-            theme={theme}
-            weekDays={weekDays}
-            onPrevWeek={handlePrevWeek}
-            onNextWeek={handleNextWeek}
-            onJumpToToday={handleJumpToToday}
-          />
-
-          {/* Stats Banner */}
-          <StatsBanner
-            theme={theme}
-            stats={stats}
-            onTriggerRollover={handleTriggerRollover}
-            isRollingOver={isRollingOver}
-          />
+          {/* Week Navigator & Stats Banner for non-day views */}
+        {currentView !== 'day' && (
+          <>
+            <WeekNavigator
+              theme={theme}
+              weekDays={weekDays}
+              onPrevWeek={handlePrevWeek}
+              onNextWeek={handleNextWeek}
+              onJumpToToday={handleJumpToToday}
+            />
+            <StatsBanner
+              theme={theme}
+              stats={stats}
+              onTriggerRollover={handleTriggerRollover}
+              isRollingOver={isRollingOver}
+            />
+          </>
+        )}
 
           {/* Body Views */}
           <View style={styles.content}>
@@ -487,13 +470,27 @@ export default function App() {
                 }}
                 onStatusChange={handleStatusChange}
                 onDeleteTask={(t) => setConfirmDelete({ id: t._id, type: 'task', title: t.title })}
-                onQuickAddTask={(date, title) =>
-                  handleCreateTask({ title, assignedDate: date, status: 'TODO' })
-                }
                 onOpenAddEvent={(date) => {
                   setCreateEventDate(date);
                   setIsCreateEventOpen(true);
                 }}
+                headerContent={
+                  <View style={styles.scrollableHeader}>
+                    <WeekNavigator
+                      theme={theme}
+                      weekDays={weekDays}
+                      onPrevWeek={handlePrevWeek}
+                      onNextWeek={handleNextWeek}
+                      onJumpToToday={handleJumpToToday}
+                    />
+                    <StatsBanner
+                      theme={theme}
+                      stats={stats}
+                      onTriggerRollover={handleTriggerRollover}
+                      isRollingOver={isRollingOver}
+                    />
+                  </View>
+                }
               />
             ) : currentView === 'weekly' ? (
               <WeeklyBoardView
@@ -591,23 +588,6 @@ export default function App() {
             weekDays={weekDays}
           />
 
-          <NotificationDropdown
-            theme={theme}
-            isOpen={isNotifModalOpen}
-            anchor={notifAnchor}
-            onClose={() => setIsNotifModalOpen(false)}
-            notifications={notifications}
-            onClearAll={async () => {
-              setNotifications([]);
-              await offlineStorage.saveNotifications([]);
-            }}
-            onMarkAllRead={async () => {
-              const updated = notifications.map((n) => ({ ...n, read: true }));
-              setNotifications(updated);
-              await offlineStorage.saveNotifications(updated);
-            }}
-          />
-
           <ConfirmModal
             theme={theme}
             isOpen={Boolean(confirmDelete)}
@@ -639,6 +619,9 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+  scrollableHeader: {
+    paddingBottom: 2,
   },
   content: {
     flex: 1,

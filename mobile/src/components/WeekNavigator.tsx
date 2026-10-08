@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { DayInfo } from '../types';
 interface WeekNavigatorProps {
   theme: ThemeColors;
   weekDays: DayInfo[];
+  todayDateDisplay?: string;
   onPrevWeek: () => void;
   onNextWeek: () => void;
   onJumpToToday: () => void;
@@ -16,6 +17,7 @@ interface WeekNavigatorProps {
 export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
   theme,
   weekDays,
+  todayDateDisplay,
   onPrevWeek,
   onNextWeek,
   onJumpToToday,
@@ -23,6 +25,16 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
   const firstDay = weekDays[0];
   const lastDay = weekDays[6];
   const weekRangeDisplay = firstDay && lastDay ? `${firstDay.displayDate} – ${lastDay.displayDate}` : '';
+
+  const todayFormatted = useMemo(() => {
+    if (todayDateDisplay) return todayDateDisplay;
+    const found = weekDays.find((d) => d.isToday);
+    if (found) return found.displayDate;
+    return new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  }, [todayDateDisplay, weekDays]);
 
   return (
     <View style={[styles.outerContainer, { backgroundColor: theme.bgApp }]}>
@@ -43,6 +55,7 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
           activeOpacity={0.7}
         >
           <Text style={[styles.todayButtonText, { color: theme.textMain }]}>TODAY</Text>
+          <Text style={[styles.todayDateText, { color: theme.textSecondary }]}>{todayFormatted}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -68,7 +81,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
     width: '100%',
@@ -84,13 +97,20 @@ const styles = StyleSheet.create({
   },
   todayButton: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingVertical: 2.5,
+    borderRadius: 10,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   todayButtonText: {
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  todayDateText: {
+    fontSize: 8.5,
+    fontWeight: '600',
+    marginTop: 0.5,
   },
 });

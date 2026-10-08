@@ -2,12 +2,11 @@ import React from 'react';
 import {
   View,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   Dimensions,
 } from 'react-native';
 import { Text } from './ScaledText';
-import { Plus, Calendar, Clock, AlertCircle } from 'lucide-react-native';
+import { Calendar, Clock, AlertCircle } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { ITask, IEvent, DayInfo, TaskStatus } from '../types';
 import { TaskCard } from './TaskCard';
@@ -19,7 +18,7 @@ interface WeeklyBoardViewProps {
   events: IEvent[];
   onOpenDetails: (task: ITask) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
-  onOpenCreate: (date: string) => void;
+  onOpenCreate?: (date: string) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -32,14 +31,13 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
   events,
   onOpenDetails,
   onStatusChange,
-  onOpenCreate,
 }) => {
   return (
     <ScrollView
       horizontal
+      pagingEnabled={false}
       showsHorizontalScrollIndicator={false}
-      style={[styles.container, { backgroundColor: theme.bgApp }]}
-      contentContainerStyle={styles.contentContainer}
+      contentContainerStyle={styles.boardContainer}
       snapToInterval={COLUMN_WIDTH + 12}
       decelerationRate="fast"
     >
@@ -54,10 +52,8 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
             style={[
               styles.column,
               {
-                width: COLUMN_WIDTH,
                 backgroundColor: theme.bgCard,
                 borderColor: day.isToday ? theme.accent : theme.border,
-                borderWidth: day.isToday ? 2 : 1,
               },
             ]}
           >
@@ -71,10 +67,17 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
                 },
               ]}
             >
-              <View style={styles.headerTitleRow}>
-                <View>
-                  <Text style={[styles.dayName, { color: theme.textMain }]}>{day.name}</Text>
-                  <Text style={[styles.dayDate, { color: theme.textMuted }]}>{day.displayDate}</Text>
+              <View style={styles.headerTopRow}>
+                <View style={styles.headerDateGroup}>
+                  <Text style={[styles.columnTitle, { color: theme.textMain }]}>
+                    {day.name}
+                  </Text>
+                  <View style={styles.dateSubRow}>
+                    <Calendar size={11} color={theme.textMuted} />
+                    <Text style={[styles.columnDate, { color: theme.textMuted }]}>
+                      {day.displayDate}
+                    </Text>
+                  </View>
                 </View>
 
                 <View style={styles.headerRightRow}>
@@ -90,16 +93,6 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
                   </View>
                 </View>
               </View>
-
-              {/* Quick Add Button */}
-              <TouchableOpacity
-                onPress={() => onOpenCreate(day.dateString)}
-                style={[styles.addColumnTaskBtn, { borderColor: theme.border }]}
-                activeOpacity={0.7}
-              >
-                <Plus size={13} color={theme.accent} />
-                <Text style={[styles.addColumnTaskText, { color: theme.textMain }]}>Add Task</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Column Body */}
@@ -141,12 +134,6 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
                   <Text style={[styles.emptyColText, { color: theme.textMuted }]}>
                     No tasks scheduled
                   </Text>
-                  <TouchableOpacity
-                    onPress={() => onOpenCreate(day.dateString)}
-                    style={styles.emptyAddBtn}
-                  >
-                    <Text style={[styles.emptyAddBtnText, { color: theme.accent }]}>+ Create Task</Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </ScrollView>
@@ -158,37 +145,41 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  contentContainer: {
+  boardContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 90,
     gap: 12,
   },
   column: {
+    width: COLUMN_WIDTH,
     borderRadius: 16,
+    borderWidth: 1,
     overflow: 'hidden',
-    height: '100%',
   },
   columnHeader: {
     padding: 12,
     borderBottomWidth: 1,
-    gap: 8,
   },
-  headerTitleRow: {
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  dayName: {
+  headerDateGroup: {
+    gap: 2,
+  },
+  columnTitle: {
     fontSize: 14,
     fontWeight: '800',
   },
-  dayDate: {
+  dateSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  columnDate: {
     fontSize: 11,
-    fontWeight: '600',
   },
   headerRightRow: {
     flexDirection: 'row',
@@ -196,35 +187,22 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   todayBadge: {
+    borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
   },
   todayBadgeText: {
     fontSize: 9,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
   countPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  countText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  addColumnTaskBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderStyle: 'dashed',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  addColumnTaskText: {
+  countText: {
     fontSize: 11,
     fontWeight: '700',
   },
@@ -234,7 +212,7 @@ const styles = StyleSheet.create({
   columnBodyContent: {
     padding: 10,
     gap: 8,
-    paddingBottom: 24,
+    paddingBottom: 20,
   },
   eventsBlock: {
     gap: 4,
@@ -246,33 +224,25 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   eventPillText: {
     color: '#FFF',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
     flex: 1,
   },
   emptyColBox: {
-    paddingVertical: 40,
-    paddingHorizontal: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: 12,
+    paddingVertical: 32,
+    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginVertical: 12,
+    gap: 8,
   },
   emptyColText: {
     fontSize: 12,
-  },
-  emptyAddBtn: {
-    paddingVertical: 4,
-  },
-  emptyAddBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
 });

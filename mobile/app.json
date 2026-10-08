@@ -9,7 +9,20 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tuhinmukherjee.tasktracker",
-      "appleTeamId": "M87KM24DJ5"
+      "appleTeamId": "M87KM24DJ5",
+      "infoPlist": {
+        "UIApplicationSceneManifest": {
+          "UIApplicationSupportsMultipleScenes": false,
+          "UISceneConfigurations": {
+            "UIWindowSceneSessionRoleApplication": [
+              {
+                "UISceneConfigurationName": "Default Configuration",
+                "UISceneDelegateClassName": "$(PRODUCT_MODULE_NAME).SceneDelegate"
+              }
+            ]
+          }
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,6 +36,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }

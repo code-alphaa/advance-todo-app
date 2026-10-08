@@ -7,7 +7,6 @@ import {
   Dimensions,
 } from 'react-native';
 import { Text } from './ScaledText';
-import { Plus } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { ITask, DayInfo, TaskStatus } from '../types';
 import { TaskCard } from './TaskCard';
@@ -18,7 +17,7 @@ interface KanbanStatusViewProps {
   tasks: ITask[];
   onOpenDetails: (task: ITask) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
-  onOpenCreate: (date?: string) => void;
+  onOpenCreate?: (date?: string) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -37,7 +36,6 @@ export const KanbanStatusView: React.FC<KanbanStatusViewProps> = ({
   tasks,
   onOpenDetails,
   onStatusChange,
-  onOpenCreate,
 }) => {
   const [selectedDayFilter, setSelectedDayFilter] = useState<string | null>(null);
 
@@ -46,17 +44,17 @@ export const KanbanStatusView: React.FC<KanbanStatusViewProps> = ({
     : tasks;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.bgApp }]}>
-      {/* Day Filter Horizontal Selector */}
+    <View style={styles.container}>
+      {/* Day Filter Chips Ribbon */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterStrip}
+        contentContainerStyle={styles.filterRibbon}
       >
         <TouchableOpacity
           onPress={() => setSelectedDayFilter(null)}
           style={[
-            styles.filterPill,
+            styles.dayFilterChip,
             {
               backgroundColor: selectedDayFilter === null ? theme.accent : theme.bgCard,
               borderColor: selectedDayFilter === null ? theme.accent : theme.border,
@@ -66,25 +64,27 @@ export const KanbanStatusView: React.FC<KanbanStatusViewProps> = ({
         >
           <Text
             style={[
-              styles.filterPillText,
+              styles.dayFilterText,
               {
                 color: selectedDayFilter === null ? theme.textOnAccent : theme.textSecondary,
-                fontWeight: selectedDayFilter === null ? '800' : '600',
+                fontWeight: selectedDayFilter === null ? '700' : '500',
               },
             ]}
           >
-            All Week
+            All Sprint ({tasks.length})
           </Text>
         </TouchableOpacity>
 
         {days.map((day) => {
           const isSelected = selectedDayFilter === day.dateString;
+          const count = tasks.filter((t) => t.assignedDate === day.dateString).length;
+
           return (
             <TouchableOpacity
               key={day.dateString}
               onPress={() => setSelectedDayFilter(day.dateString)}
               style={[
-                styles.filterPill,
+                styles.dayFilterChip,
                 {
                   backgroundColor: isSelected ? theme.accent : theme.bgCard,
                   borderColor: isSelected ? theme.accent : theme.border,
@@ -94,25 +94,26 @@ export const KanbanStatusView: React.FC<KanbanStatusViewProps> = ({
             >
               <Text
                 style={[
-                  styles.filterPillText,
+                  styles.dayFilterText,
                   {
                     color: isSelected ? theme.textOnAccent : theme.textSecondary,
-                    fontWeight: isSelected ? '800' : '600',
+                    fontWeight: isSelected ? '700' : '500',
                   },
                 ]}
               >
-                {day.shortName} ({day.displayDate.split(' ')[1]})
+                {day.shortName} ({count})
               </Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* Kanban Columns */}
+      {/* Horizontal Status Columns */}
       <ScrollView
         horizontal
+        pagingEnabled={false}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.columnsContent}
+        contentContainerStyle={styles.columnsContainer}
         snapToInterval={COLUMN_WIDTH + 12}
         decelerationRate="fast"
       >
@@ -126,13 +127,12 @@ export const KanbanStatusView: React.FC<KanbanStatusViewProps> = ({
               style={[
                 styles.column,
                 {
-                  width: COLUMN_WIDTH,
                   backgroundColor: theme.bgCard,
                   borderColor: theme.border,
                 },
               ]}
             >
-              {/* Header */}
+              {/* Column Header */}
               <View
                 style={[
                   styles.colHeader,
@@ -153,17 +153,6 @@ export const KanbanStatusView: React.FC<KanbanStatusViewProps> = ({
                     </Text>
                   </View>
                 </View>
-
-                {col.id === 'TODO' && (
-                  <TouchableOpacity
-                    onPress={() => onOpenCreate(selectedDayFilter || undefined)}
-                    style={[styles.addBtn, { borderColor: theme.border }]}
-                    activeOpacity={0.7}
-                  >
-                    <Plus size={12} color={theme.accent} />
-                    <Text style={[styles.addBtnText, { color: theme.textMain }]}>Add Task</Text>
-                  </TouchableOpacity>
-                )}
               </View>
 
               {/* Tasks List */}
@@ -183,9 +172,9 @@ export const KanbanStatusView: React.FC<KanbanStatusViewProps> = ({
                 ))}
 
                 {colTasks.length === 0 && (
-                  <View style={[styles.emptyBox, { borderColor: theme.border }]}>
+                  <View style={[styles.emptyCol, { borderColor: theme.border }]}>
                     <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-                      No {col.title.toLowerCase()} tasks
+                      No tasks in {col.title.toLowerCase()}
                     </Text>
                   </View>
                 )}
@@ -202,31 +191,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  filterStrip: {
+  filterRibbon: {
     paddingHorizontal: 16,
     paddingVertical: 6,
-    gap: 6,
+    gap: 8,
   },
-  filterPill: {
+  dayFilterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: 1,
   },
-  filterPillText: {
+  dayFilterText: {
     fontSize: 11,
   },
-  columnsContent: {
+  columnsContainer: {
     paddingHorizontal: 16,
     paddingTop: 4,
     paddingBottom: 90,
     gap: 12,
   },
   column: {
+    width: COLUMN_WIDTH,
     borderRadius: 16,
     borderWidth: 1,
     overflow: 'hidden',
-    height: '100%',
   },
   colHeader: {
     padding: 12,
@@ -249,31 +238,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   colTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
-    borderStyle: 'dashed',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
-  addBtnText: {
+  badgeText: {
     fontSize: 11,
     fontWeight: '700',
   },
@@ -285,16 +260,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingBottom: 24,
   },
-  emptyBox: {
-    paddingVertical: 36,
+  emptyCol: {
+    borderRadius: 12,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: 12,
+    paddingVertical: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 12,
   },
   emptyText: {
-    fontSize: 11,
+    fontSize: 12,
   },
 });

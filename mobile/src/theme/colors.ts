@@ -26,28 +26,30 @@ export interface ThemeColors {
 
 export const darkTheme: ThemeColors = {
   isDark: true,
-  bgApp: '#37353E',
-  bgCard: '#44444E',
-  columnBg: '#3D3D47',
-  columnHeader: '#35353E',
-  border: '#715A5A',
-  textMain: '#D3DAD9',
-  textSecondary: '#BAC2C1',
-  textMuted: '#8E8A91',
-  accent: '#D3DAD9',
-  accentHover: '#E3E8E7',
-  accentSubtle: '#4D4548',
-  textOnAccent: '#232228',
-  chipBg: '#37353E',
+  // Palette: #EFD395 (Straw Yellow), #A4A4A4 (Rainy Grey), #777674 (Steel Wool),
+  //          #4B4A48 (Private Black), #262625 (Nero), #131313 (Cursed Black)
+  bgApp: '#131313',          // Cursed Black
+  bgCard: '#262625',         // Nero
+  columnBg: '#1B1B1B',       // Deep surface container
+  columnHeader: '#262625',   // Nero
+  border: '#4B4A48',         // Private Black
+  textMain: '#F5F5F4',       // High-contrast clean off-white
+  textSecondary: '#A4A4A4',  // Rainy Grey
+  textMuted: '#777674',      // Steel Wool
+  accent: '#EFD395',         // Straw Yellow
+  accentHover: '#F7E4B8',    // Light Straw Yellow
+  accentSubtle: 'rgba(239, 211, 149, 0.15)',
+  textOnAccent: '#131313',   // Cursed Black
+  chipBg: '#262625',         // Nero
   doneGreen: '#10B981',
   inProgressBlue: '#3B82F6',
   reviewPurple: '#A855F7',
-  todoGray: '#94A3B8',
+  todoGray: '#777674',       // Steel Wool
   urgentRed: '#EF4444',
   highOrange: '#F97316',
-  mediumYellow: '#EAB308',
+  mediumYellow: '#EFD395',   // Straw Yellow
   lowBlue: '#06B6D4',
-  modalBackdrop: 'rgba(20, 19, 23, 0.75)',
+  modalBackdrop: 'rgba(19, 19, 19, 0.85)',
 };
 
 export const lightTheme: ThemeColors = {
@@ -58,20 +60,20 @@ export const lightTheme: ThemeColors = {
   columnHeader: '#FFE5BF',
   border: '#FFE5BF',
   textMain: '#2A272A',
-  textSecondary: '#5C5552',
-  textMuted: '#9C8E85',
+  textSecondary: '#746F73',
+  textMuted: '#9B969A',
   accent: '#F62440',
-  accentHover: '#DE1B34',
-  accentSubtle: '#FCE7EA',
+  accentHover: '#DF1934',
+  accentSubtle: '#FEE8EC',
   textOnAccent: '#FFFFFF',
-  chipBg: '#FFF8EE',
+  chipBg: '#FFE5BF',
   doneGreen: '#10B981',
-  inProgressBlue: '#2563EB',
-  reviewPurple: '#9333EA',
-  todoGray: '#64748B',
-  urgentRed: '#DC2626',
-  highOrange: '#EA580C',
-  mediumYellow: '#CA8A04',
-  lowBlue: '#0891B2',
-  modalBackdrop: 'rgba(42, 39, 42, 0.6)',
+  inProgressBlue: '#3B82F6',
+  reviewPurple: '#A855F7',
+  todoGray: '#94A3B8',
+  urgentRed: '#EF4444',
+  highOrange: '#F97316',
+  mediumYellow: '#EAB308',
+  lowBlue: '#06B6D4',
+  modalBackdrop: 'rgba(0, 0, 0, 0.5)',
 };

@@ -69,13 +69,20 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           );
         })}
 
-        {/* Create Quick Action */}
+        {/* Primary Add Task Floating Button */}
         <TouchableOpacity
           onPress={onOpenCreate}
-          style={[styles.createTab, { backgroundColor: theme.accent }]}
+          style={[
+            styles.createTab,
+            {
+              backgroundColor: theme.accent,
+              shadowColor: theme.accent,
+            },
+          ]}
           activeOpacity={0.8}
+          accessibilityLabel="Add Task"
         >
-          <Plus size={15} color={theme.textOnAccent} />
+          <Plus size={22} color={theme.textOnAccent} strokeWidth={2.6} />
         </TouchableOpacity>
       </View>
     </View>
@@ -94,9 +101,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 30,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 32,
     borderWidth: 1,
     gap: 4,
     shadowOffset: { width: 0, height: 4 },
@@ -109,18 +116,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 20,
   },
   tabLabel: {
     fontSize: 11,
   },
   createTab: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 2,
+    marginLeft: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
