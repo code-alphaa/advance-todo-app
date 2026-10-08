@@ -1,15 +1,19 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Calendar, Bell, Sun, Moon, Plus } from 'lucide-react-native';
+import React, { useRef } from 'react';
+import { View, TouchableOpacity, StyleSheet, Image, Text as FixedText } from 'react-native';
+import { Text } from './ScaledText';
+import { Calendar, Bell, Sun, Moon } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
+import { useFontScale } from '../theme/fontScale';
+import { DropdownAnchor } from './NotificationDropdown';
 
 interface HeaderProps {
   theme: ThemeColors;
   todayDisplay: string;
   unreadCount: number;
   onToggleTheme: () => void;
-  onOpenNotifications: () => void;
-  onOpenCreate: () => void;
+  onOpenNotifications: (anchor: DropdownAnchor) => void;
+  onIncreaseFont: () => void;
+  onDecreaseFont: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,18 +22,31 @@ export const Header: React.FC<HeaderProps> = ({
   unreadCount,
   onToggleTheme,
   onOpenNotifications,
-  onOpenCreate,
+  onIncreaseFont,
+  onDecreaseFont,
 }) => {
+  const { canIncrease, canDecrease } = useFontScale();
+  const bellRef = useRef<View>(null);
+
+  // Measure the bell so the dropdown can open right beneath it
+  const handleOpenNotifications = () => {
+    bellRef.current?.measureInWindow((x, y, width, height) => {
+      onOpenNotifications({ x, y, width, height });
+    });
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.bgCard, borderBottomColor: theme.border }]}>
       {/* Left: Logo and Branding */}
       <View style={styles.brandRow}>
         <Image source={require('../../assets/logo.png')} style={styles.logo} />
         <View style={styles.titleCol}>
-          <Text style={[styles.brandTitle, { color: theme.textMain }]}>TT | Task Tracker</Text>
+          <Text style={[styles.brandTitle, { color: theme.textMain }]} numberOfLines={1}>
+            TT | Task Tracker
+          </Text>
           <View style={styles.todayRow}>
             <Calendar size={12} color={theme.accent} />
-            <Text style={[styles.todayText, { color: theme.textMuted }]}>
+            <Text style={[styles.todayText, { color: theme.textMuted }]} numberOfLines={1}>
               {' '}Today: <Text style={{ color: theme.textMain, fontWeight: '700' }}>{todayDisplay}</Text>
             </Text>
           </View>
@@ -40,19 +57,43 @@ export const Header: React.FC<HeaderProps> = ({
       <View style={styles.actionsRow}>
         {/* Notification Bell */}
         <TouchableOpacity
-          onPress={onOpenNotifications}
+          ref={bellRef}
+          onPress={handleOpenNotifications}
           style={[styles.iconButton, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
           activeOpacity={0.7}
         >
           <Bell size={16} color={theme.textSecondary} />
           {unreadCount > 0 && (
             <View style={[styles.badge, { backgroundColor: theme.accent }]}>
-              <Text style={[styles.badgeText, { color: theme.textOnAccent }]}>
+              <FixedText style={[styles.badgeText, { color: theme.textOnAccent }]}>
                 {unreadCount > 9 ? '9+' : unreadCount}
-              </Text>
+              </FixedText>
             </View>
           )}
         </TouchableOpacity>
+
+        {/* Text Size: A- / A+ */}
+        <View style={[styles.fontGroup, { backgroundColor: theme.bgApp, borderColor: theme.border }]}>
+          <TouchableOpacity
+            onPress={onDecreaseFont}
+            disabled={!canDecrease}
+            style={[styles.fontButton, { opacity: canDecrease ? 1 : 0.35 }]}
+            activeOpacity={0.7}
+            accessibilityLabel="Decrease text size"
+          >
+            <FixedText style={[styles.fontButtonSmall, { color: theme.textSecondary }]}>A−</FixedText>
+          </TouchableOpacity>
+          <View style={[styles.fontDivider, { backgroundColor: theme.border }]} />
+          <TouchableOpacity
+            onPress={onIncreaseFont}
+            disabled={!canIncrease}
+            style={[styles.fontButton, { opacity: canIncrease ? 1 : 0.35 }]}
+            activeOpacity={0.7}
+            accessibilityLabel="Increase text size"
+          >
+            <FixedText style={[styles.fontButtonLarge, { color: theme.textSecondary }]}>A+</FixedText>
+          </TouchableOpacity>
+        </View>
 
         {/* Theme Toggle */}
         <TouchableOpacity
@@ -67,15 +108,6 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </TouchableOpacity>
 
-        {/* Create Button */}
-        <TouchableOpacity
-          onPress={onOpenCreate}
-          style={[styles.createButton, { backgroundColor: theme.accent }]}
-          activeOpacity={0.8}
-        >
-          <Plus size={15} color={theme.textOnAccent} />
-          <Text style={[styles.createText, { color: theme.textOnAccent }]}>Create</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -104,6 +136,7 @@ const styles = StyleSheet.create({
   },
   titleCol: {
     justifyContent: 'center',
+    flexShrink: 1,
   },
   brandTitle: {
     fontSize: 14,
@@ -132,6 +165,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
+  fontGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  fontButton: {
+    width: 30,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fontDivider: {
+    width: 1,
+    height: 18,
+  },
+  fontButtonSmall: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  fontButtonLarge: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
   badge: {
     position: 'absolute',
     top: -3,
@@ -145,17 +204,5 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 9,
     fontWeight: '800',
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 10,
-    height: 34,
-    borderRadius: 10,
-  },
-  createText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
 });

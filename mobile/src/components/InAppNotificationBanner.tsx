@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Text } from './ScaledText';
 import { Bell, X } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 

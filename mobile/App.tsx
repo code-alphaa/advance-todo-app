@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import { Text } from './src/components/ScaledText';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { darkTheme, lightTheme, ThemeColors } from './src/theme/colors';
+import {
+  FontScaleProvider,
+  DEFAULT_FONT_SCALE,
+  normalizeFontScale,
+  stepFontScale,
+} from './src/theme/fontScale';
 import { offlineStorage } from './src/services/storage';
 import { requestNotificationPermission, playNotificationAlert } from './src/services/notifications';
 import {
@@ -19,6 +26,7 @@ import {
   getWeekDates,
   formatFriendlyDate,
 } from './src/utils/dateUtils';
+import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTimes';
 
 import { Header } from './src/components/Header';
 import { WeekNavigator } from './src/components/WeekNavigator';
@@ -31,7 +39,7 @@ import { CalendarView } from './src/components/CalendarView';
 import { CreateTaskModal } from './src/components/CreateTaskModal';
 import { CreateEventModal } from './src/components/CreateEventModal';
 import { TaskDetailModal } from './src/components/TaskDetailModal';
-import { NotificationModal } from './src/components/NotificationModal';
+import { NotificationDropdown, DropdownAnchor } from './src/components/NotificationDropdown';
 import { ConfirmModal } from './src/components/ConfirmModal';
 import { InAppNotificationBanner } from './src/components/InAppNotificationBanner';
 
@@ -39,6 +47,7 @@ export default function App() {
   // Theme state
   const [isDark, setIsDark] = useState<boolean>(true);
   const [themeLoaded, setThemeLoaded] = useState(false);
+  const [fontScale, setFontScale] = useState<number>(DEFAULT_FONT_SCALE);
   const theme: ThemeColors = isDark ? darkTheme : lightTheme;
 
   // Today reference
@@ -86,6 +95,7 @@ export default function App() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+  const [notifAnchor, setNotifAnchor] = useState<DropdownAnchor | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     id: string;
     type: 'task' | 'event';
@@ -106,8 +116,12 @@ export default function App() {
   // Load initial theme and notifications
   useEffect(() => {
     const initApp = async () => {
-      const savedTheme = await offlineStorage.getTheme();
+      const [savedTheme, savedFontScale] = await Promise.all([
+        offlineStorage.getTheme(),
+        offlineStorage.getFontScale(),
+      ]);
       setIsDark(savedTheme === 'dark');
+      if (savedFontScale != null) setFontScale(normalizeFontScale(savedFontScale));
       setThemeLoaded(true);
 
       const savedNotifs = await offlineStorage.getNotifications();
@@ -123,6 +137,14 @@ export default function App() {
     const next = !isDark;
     setIsDark(next);
     await offlineStorage.saveTheme(next ? 'dark' : 'light');
+  };
+
+  // Increase / decrease app-wide text size & save
+  const handleChangeFontScale = async (direction: 1 | -1) => {
+    const next = stepFontScale(fontScale, direction);
+    if (next === fontScale) return;
+    setFontScale(next);
+    await offlineStorage.saveFontScale(next);
   };
 
   // Load tasks, events, and stats from local storage
@@ -216,59 +238,52 @@ export default function App() {
           const isNewDay = t.lastReminderDate !== todayDateStr;
           const sentToday = isNewDay ? 0 : (t.remindersSentToday || 0);
 
-          if (sentToday < t.remindersPerDay) {
-            const intervalHours = Math.max(1, Math.floor(12 / t.remindersPerDay));
-            const minIntervalMs = intervalHours * 3600 * 1000;
-            const lastTimeMs = t.lastReminderTimestamp ? new Date(t.lastReminderTimestamp).getTime() : 0;
+          // Fire once when one or more of today's reminder times has been reached;
+          // slots missed while the app was closed collapse into a single reminder
+          const dueCount = countPassedTimes(getTaskReminderTimes(t), now);
 
-            const shouldTrigger =
-              !t.lastReminderTimestamp ||
-              isNewDay ||
-              (nowMs - lastTimeMs >= minIntervalMs);
+          if (dueCount > sentToday) {
+            const newSent = dueCount;
+            const nowIso = now.toISOString();
 
-            if (shouldTrigger) {
-              const newSent = sentToday + 1;
-              const nowIso = now.toISOString();
+            await offlineStorage.updateTask(t._id, {
+              remindersSentToday: newSent,
+              lastReminderDate: todayDateStr,
+              lastReminderTimestamp: nowIso,
+            });
 
-              await offlineStorage.updateTask(t._id, {
-                remindersSentToday: newSent,
-                lastReminderDate: todayDateStr,
-                lastReminderTimestamp: nowIso,
-              });
+            setTasks((prev) =>
+              prev.map((item) =>
+                item._id === t._id
+                  ? {
+                      ...item,
+                      remindersSentToday: newSent,
+                      lastReminderDate: todayDateStr,
+                      lastReminderTimestamp: nowIso,
+                    }
+                  : item
+              )
+            );
 
-              setTasks((prev) =>
-                prev.map((item) =>
-                  item._id === t._id
-                    ? {
-                        ...item,
-                        remindersSentToday: newSent,
-                        lastReminderDate: todayDateStr,
-                        lastReminderTimestamp: nowIso,
-                      }
-                    : item
-                )
-              );
+            // Display in-app banner
+            const bannerTitle = `Task Reminder: [${t.key}]`;
+            const bannerMessage = `${t.title} • Daily reminder (${newSent}/${t.remindersPerDay}).`;
+            setActiveBanner({ title: bannerTitle, message: bannerMessage });
+            playNotificationAlert(bannerTitle, bannerMessage);
 
-              // Display in-app banner
-              const bannerTitle = `Task Reminder: [${t.key}]`;
-              const bannerMessage = `${t.title} • Daily reminder (${newSent}/${t.remindersPerDay}).`;
-              setActiveBanner({ title: bannerTitle, message: bannerMessage });
-              playNotificationAlert(bannerTitle, bannerMessage);
+            // Save to notifications
+            const newNotif: AppNotification = {
+              id: `${t._id}-${Date.now()}`,
+              title: `Task Reminder: ${t.key}`,
+              message: `[${t.title}] - Daily reminder (${newSent}/${t.remindersPerDay}). Status: ${t.status.replace('_', ' ')}.`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              taskId: t._id,
+              read: false,
+            };
 
-              // Save to notifications
-              const newNotif: AppNotification = {
-                id: `${t._id}-${Date.now()}`,
-                title: `Task Reminder: ${t.key}`,
-                message: `[${t.title}] - Daily reminder (${newSent}/${t.remindersPerDay}). Status: ${t.status.replace('_', ' ')}.`,
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                taskId: t._id,
-                read: false,
-              };
-
-              const updatedNotifs = [newNotif, ...notifications];
-              setNotifications(updatedNotifs);
-              await offlineStorage.saveNotifications(updatedNotifs);
-            }
+            const updatedNotifs = [newNotif, ...notifications];
+            setNotifications(updatedNotifs);
+            await offlineStorage.saveNotifications(updatedNotifs);
           }
         } catch (e) {
           console.error('Error evaluating task reminder:', e);
@@ -402,216 +417,221 @@ export default function App() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // Avoid flashing the default theme before the saved one is restored
+  // Avoid flashing the default theme/text size before the saved ones are restored
   if (!themeLoaded) return null;
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bgApp }]} edges={['top', 'left', 'right']}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
+      <FontScaleProvider scale={fontScale}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bgApp }]} edges={['top', 'left', 'right']}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
 
-        {/* In-App Notification Alert Banner */}
-        <InAppNotificationBanner
-          theme={theme}
-          banner={activeBanner}
-          onDismiss={() => setActiveBanner(null)}
-        />
+          {/* In-App Notification Alert Banner */}
+          <InAppNotificationBanner
+            theme={theme}
+            banner={activeBanner}
+            onDismiss={() => setActiveBanner(null)}
+          />
 
-        {/* Top Header */}
-        <Header
-          theme={theme}
-          todayDisplay={todayDisplay}
-          unreadCount={unreadCount}
-          onToggleTheme={handleToggleTheme}
-          onOpenNotifications={() => setIsNotifModalOpen(true)}
-          onOpenCreate={() => {
-            setCreateTaskDate(selectedDayDate || todayDateStr);
-            setIsCreateTaskOpen(true);
-          }}
-        />
+          {/* Top Header */}
+          <Header
+            theme={theme}
+            todayDisplay={todayDisplay}
+            unreadCount={unreadCount}
+            onToggleTheme={handleToggleTheme}
+            onIncreaseFont={() => handleChangeFontScale(1)}
+            onDecreaseFont={() => handleChangeFontScale(-1)}
+            onOpenNotifications={(anchor) => {
+              setNotifAnchor(anchor);
+              setIsNotifModalOpen(true);
+            }}
+          />
 
-        {/* Week Navigator */}
-        <WeekNavigator
-          theme={theme}
-          weekDays={weekDays}
-          onPrevWeek={handlePrevWeek}
-          onNextWeek={handleNextWeek}
-          onJumpToToday={handleJumpToToday}
-        />
+          {/* Week Navigator */}
+          <WeekNavigator
+            theme={theme}
+            weekDays={weekDays}
+            onPrevWeek={handlePrevWeek}
+            onNextWeek={handleNextWeek}
+            onJumpToToday={handleJumpToToday}
+          />
 
-        {/* Stats Banner */}
-        <StatsBanner
-          theme={theme}
-          stats={stats}
-          onTriggerRollover={handleTriggerRollover}
-          isRollingOver={isRollingOver}
-        />
+          {/* Stats Banner */}
+          <StatsBanner
+            theme={theme}
+            stats={stats}
+            onTriggerRollover={handleTriggerRollover}
+            isRollingOver={isRollingOver}
+          />
 
-        {/* Body Views */}
-        <View style={styles.content}>
-          {loading ? (
-            <View style={styles.loaderCenter}>
-              <ActivityIndicator size="large" color={theme.accent} />
-              <Text style={[styles.loadingText, { color: theme.textMuted }]}>
-                Loading offline tasks & events...
-              </Text>
-            </View>
-          ) : currentView === 'day' ? (
-            <SingleDayView
-              theme={theme}
-              days={weekDays}
-              selectedDate={selectedDayDate}
-              onSelectDate={setSelectedDayDate}
-              tasks={tasks}
-              events={events}
-              onOpenDetails={(t) => {
-                setSelectedTask(t);
-                setIsDetailOpen(true);
-              }}
-              onStatusChange={handleStatusChange}
-              onQuickAddTask={(date, title) =>
-                handleCreateTask({ title, assignedDate: date, status: 'TODO' })
+          {/* Body Views */}
+          <View style={styles.content}>
+            {loading ? (
+              <View style={styles.loaderCenter}>
+                <ActivityIndicator size="large" color={theme.accent} />
+                <Text style={[styles.loadingText, { color: theme.textMuted }]}>
+                  Loading offline tasks & events...
+                </Text>
+              </View>
+            ) : currentView === 'day' ? (
+              <SingleDayView
+                theme={theme}
+                days={weekDays}
+                selectedDate={selectedDayDate}
+                onSelectDate={setSelectedDayDate}
+                tasks={tasks}
+                events={events}
+                onOpenDetails={(t) => {
+                  setSelectedTask(t);
+                  setIsDetailOpen(true);
+                }}
+                onStatusChange={handleStatusChange}
+                onDeleteTask={(t) => setConfirmDelete({ id: t._id, type: 'task', title: t.title })}
+                onQuickAddTask={(date, title) =>
+                  handleCreateTask({ title, assignedDate: date, status: 'TODO' })
+                }
+                onOpenAddEvent={(date) => {
+                  setCreateEventDate(date);
+                  setIsCreateEventOpen(true);
+                }}
+              />
+            ) : currentView === 'weekly' ? (
+              <WeeklyBoardView
+                theme={theme}
+                days={weekDays}
+                tasks={tasks}
+                events={events}
+                onOpenDetails={(t) => {
+                  setSelectedTask(t);
+                  setIsDetailOpen(true);
+                }}
+                onStatusChange={handleStatusChange}
+                onOpenCreate={(date) => {
+                  setCreateTaskDate(date);
+                  setIsCreateTaskOpen(true);
+                }}
+              />
+            ) : currentView === 'kanban' ? (
+              <KanbanStatusView
+                theme={theme}
+                days={weekDays}
+                tasks={tasks}
+                onOpenDetails={(t) => {
+                  setSelectedTask(t);
+                  setIsDetailOpen(true);
+                }}
+                onStatusChange={handleStatusChange}
+                onOpenCreate={(date) => {
+                  setCreateTaskDate(date || todayDateStr);
+                  setIsCreateTaskOpen(true);
+                }}
+              />
+            ) : (
+              <CalendarView
+                theme={theme}
+                events={events}
+                tasks={tasks}
+                todayDateStr={todayDateStr}
+                onAddEvent={(d) => {
+                  setCreateEventDate(d);
+                  setIsCreateEventOpen(true);
+                }}
+                onDeleteEvent={(id, title) => {
+                  setConfirmDelete({ id, type: 'event', title });
+                }}
+                onOpenTaskDetails={(t) => {
+                  setSelectedTask(t);
+                  setIsDetailOpen(true);
+                }}
+              />
+            )}
+          </View>
+
+          {/* Floating Bottom Navigation */}
+          <BottomNav
+            theme={theme}
+            currentView={currentView}
+            onViewChange={setCurrentView}
+            onOpenCreate={() => {
+              setCreateTaskDate(selectedDayDate || todayDateStr);
+              setIsCreateTaskOpen(true);
+            }}
+          />
+
+          {/* Modals */}
+          <CreateTaskModal
+            theme={theme}
+            isOpen={isCreateTaskOpen}
+            onClose={() => setIsCreateTaskOpen(false)}
+            onSubmit={handleCreateTask}
+            weekDays={weekDays}
+            defaultDate={createTaskDate}
+          />
+
+          <CreateEventModal
+            theme={theme}
+            isOpen={isCreateEventOpen}
+            onClose={() => setIsCreateEventOpen(false)}
+            onSubmit={handleCreateEvent}
+            initialDate={createEventDate}
+          />
+
+          <TaskDetailModal
+            theme={theme}
+            task={selectedTask}
+            isOpen={isDetailOpen}
+            onClose={() => {
+              setIsDetailOpen(false);
+              setSelectedTask(null);
+            }}
+            onUpdate={handleUpdateTask}
+            onDelete={(id) => {
+              setConfirmDelete({ id, type: 'task', title: selectedTask?.title || 'task' });
+            }}
+            weekDays={weekDays}
+          />
+
+          <NotificationDropdown
+            theme={theme}
+            isOpen={isNotifModalOpen}
+            anchor={notifAnchor}
+            onClose={() => setIsNotifModalOpen(false)}
+            notifications={notifications}
+            onClearAll={async () => {
+              setNotifications([]);
+              await offlineStorage.saveNotifications([]);
+            }}
+            onMarkAllRead={async () => {
+              const updated = notifications.map((n) => ({ ...n, read: true }));
+              setNotifications(updated);
+              await offlineStorage.saveNotifications(updated);
+            }}
+          />
+
+          <ConfirmModal
+            theme={theme}
+            isOpen={Boolean(confirmDelete)}
+            title={confirmDelete?.type === 'task' ? 'Delete Task' : 'Delete Event'}
+            message={`Are you sure you want to delete "${confirmDelete?.title}"?`}
+            confirmText="Delete"
+            cancelText="Cancel"
+            isDestructive={true}
+            onConfirm={() => {
+              if (confirmDelete) {
+                if (confirmDelete.type === 'task') {
+                  handleDeleteTask(confirmDelete.id);
+                  setIsDetailOpen(false);
+                  setSelectedTask(null);
+                } else {
+                  handleDeleteEvent(confirmDelete.id);
+                }
+                setConfirmDelete(null);
               }
-              onOpenAddEvent={(date) => {
-                setCreateEventDate(date);
-                setIsCreateEventOpen(true);
-              }}
-            />
-          ) : currentView === 'weekly' ? (
-            <WeeklyBoardView
-              theme={theme}
-              days={weekDays}
-              tasks={tasks}
-              events={events}
-              onOpenDetails={(t) => {
-                setSelectedTask(t);
-                setIsDetailOpen(true);
-              }}
-              onStatusChange={handleStatusChange}
-              onOpenCreate={(date) => {
-                setCreateTaskDate(date);
-                setIsCreateTaskOpen(true);
-              }}
-            />
-          ) : currentView === 'kanban' ? (
-            <KanbanStatusView
-              theme={theme}
-              days={weekDays}
-              tasks={tasks}
-              onOpenDetails={(t) => {
-                setSelectedTask(t);
-                setIsDetailOpen(true);
-              }}
-              onStatusChange={handleStatusChange}
-              onOpenCreate={(date) => {
-                setCreateTaskDate(date || todayDateStr);
-                setIsCreateTaskOpen(true);
-              }}
-            />
-          ) : (
-            <CalendarView
-              theme={theme}
-              events={events}
-              tasks={tasks}
-              todayDateStr={todayDateStr}
-              onAddEvent={(d) => {
-                setCreateEventDate(d);
-                setIsCreateEventOpen(true);
-              }}
-              onDeleteEvent={(id, title) => {
-                setConfirmDelete({ id, type: 'event', title });
-              }}
-              onOpenTaskDetails={(t) => {
-                setSelectedTask(t);
-                setIsDetailOpen(true);
-              }}
-            />
-          )}
-        </View>
-
-        {/* Floating Bottom Navigation */}
-        <BottomNav
-          theme={theme}
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          onOpenCreate={() => {
-            setCreateTaskDate(selectedDayDate || todayDateStr);
-            setIsCreateTaskOpen(true);
-          }}
-        />
-
-        {/* Modals */}
-        <CreateTaskModal
-          theme={theme}
-          isOpen={isCreateTaskOpen}
-          onClose={() => setIsCreateTaskOpen(false)}
-          onSubmit={handleCreateTask}
-          weekDays={weekDays}
-          defaultDate={createTaskDate}
-        />
-
-        <CreateEventModal
-          theme={theme}
-          isOpen={isCreateEventOpen}
-          onClose={() => setIsCreateEventOpen(false)}
-          onSubmit={handleCreateEvent}
-          initialDate={createEventDate}
-        />
-
-        <TaskDetailModal
-          theme={theme}
-          task={selectedTask}
-          isOpen={isDetailOpen}
-          onClose={() => {
-            setIsDetailOpen(false);
-            setSelectedTask(null);
-          }}
-          onUpdate={handleUpdateTask}
-          onDelete={(id) => {
-            setConfirmDelete({ id, type: 'task', title: selectedTask?.title || 'task' });
-          }}
-          weekDays={weekDays}
-        />
-
-        <NotificationModal
-          theme={theme}
-          isOpen={isNotifModalOpen}
-          onClose={() => setIsNotifModalOpen(false)}
-          notifications={notifications}
-          onClearAll={async () => {
-            setNotifications([]);
-            await offlineStorage.saveNotifications([]);
-          }}
-          onMarkAllRead={async () => {
-            const updated = notifications.map((n) => ({ ...n, read: true }));
-            setNotifications(updated);
-            await offlineStorage.saveNotifications(updated);
-          }}
-        />
-
-        <ConfirmModal
-          theme={theme}
-          isOpen={Boolean(confirmDelete)}
-          title={confirmDelete?.type === 'task' ? 'Delete Task' : 'Delete Event'}
-          message={`Are you sure you want to delete "${confirmDelete?.title}"?`}
-          confirmText="Delete"
-          cancelText="Cancel"
-          isDestructive={true}
-          onConfirm={() => {
-            if (confirmDelete) {
-              if (confirmDelete.type === 'task') {
-                handleDeleteTask(confirmDelete.id);
-                setIsDetailOpen(false);
-                setSelectedTask(null);
-              } else {
-                handleDeleteEvent(confirmDelete.id);
-              }
-              setConfirmDelete(null);
-            }
-          }}
-          onCancel={() => setConfirmDelete(null)}
-        />
-      </SafeAreaView>
+            }}
+            onCancel={() => setConfirmDelete(null)}
+          />
+        </SafeAreaView>
+      </FontScaleProvider>
     </SafeAreaProvider>
   );
 }

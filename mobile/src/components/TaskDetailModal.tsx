@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import {
   X,
   Trash2,
@@ -17,9 +16,11 @@ import {
   Square,
   Plus,
   RotateCw,
-  Bell,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
+import { ReminderTimesEditor } from './ReminderTimesEditor';
+import { getTaskReminderTimes, countPassedTimes } from '../utils/reminderTimes';
+import { formatDateToYYYYMMDD } from '../utils/dateUtils';
 import { ITask, ISubtask, TaskStatus, TaskPriority, DayInfo } from '../types';
 
 interface TaskDetailModalProps {
@@ -50,6 +51,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [assignedDate, setAssignedDate] = useState('');
   const [remindersPerDay, setRemindersPerDay] = useState(0);
+  const [reminderTimes, setReminderTimes] = useState<string[]>([]);
   const [subtasks, setSubtasks] = useState<ISubtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('1');
@@ -63,6 +65,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       setPriority(task.priority);
       setAssignedDate(task.assignedDate);
       setRemindersPerDay(task.remindersPerDay || 0);
+      setReminderTimes(getTaskReminderTimes(task));
       setSubtasks(task.subtasks || []);
       setEstimatedHours(String(task.estimatedHours || 1));
       setLoggedHours(String(task.loggedHours || 0));
@@ -104,6 +107,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       priority,
       assignedDate,
       remindersPerDay,
+      reminderTimes,
       subtasks,
       estimatedHours: Number(estimatedHours) || 1,
       loggedHours: Number(loggedHours) || 0,
@@ -225,62 +229,32 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             </View>
 
             {/* Daily Task Reminders */}
-            <View style={styles.formGroup}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Bell size={14} color={theme.accent} />
-                  <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 0 }]}>
-                    Daily Reminders
-                  </Text>
-                </View>
-                {remindersPerDay > 0 && (
+            <ReminderTimesEditor
+              theme={theme}
+              count={remindersPerDay}
+              times={reminderTimes}
+              onChange={(count, times) => {
+                setRemindersPerDay(count);
+                setReminderTimes(times);
+                // Times already passed today count as sent so editing doesn't trigger an instant reminder
+                const todayStr = formatDateToYYYYMMDD(new Date());
+                onUpdate(task._id, {
+                  remindersPerDay: count,
+                  reminderTimes: times,
+                  remindersSentToday: countPassedTimes(times),
+                  lastReminderDate: todayStr,
+                });
+              }}
+              headerRight={
+                remindersPerDay > 0 ? (
                   <View style={{ backgroundColor: theme.bgApp, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: theme.border }}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: theme.accent }}>
                       {task.remindersSentToday || 0}/{remindersPerDay} sent today
                     </Text>
                   </View>
-                )}
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-                {[0, 1, 2, 3, 4, 5].map((count) => {
-                  const isSelected = remindersPerDay === count;
-                  return (
-                    <TouchableOpacity
-                      key={count}
-                      onPress={() => {
-                        setRemindersPerDay(count);
-                        onUpdate(task._id, { remindersPerDay: count });
-                      }}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
-                            fontWeight: isSelected ? '800' : '600',
-                          },
-                        ]}
-                      >
-                        {count === 0 ? 'Off' : `🔔 ${count}/day`}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <Text style={{ fontSize: 11, color: theme.textMuted, marginTop: 4 }}>
-                {remindersPerDay === 0
-                  ? 'No notifications will be triggered for this task.'
-                  : `You will be notified up to ${remindersPerDay} time(s) a day until completed.`}
-              </Text>
-            </View>
+                ) : undefined
+              }
+            />
 
             {/* Priority */}
             <View style={styles.formGroup}>

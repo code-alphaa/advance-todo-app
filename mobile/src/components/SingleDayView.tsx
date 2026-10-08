@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   StyleSheet,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import {
   Calendar,
   Clock,
@@ -19,6 +18,7 @@ import {
 import { ThemeColors } from '../theme/colors';
 import { ITask, IEvent, DayInfo, TaskStatus } from '../types';
 import { TaskCard } from './TaskCard';
+import { SwipeToDelete } from './SwipeToDelete';
 
 interface SingleDayViewProps {
   theme: ThemeColors;
@@ -29,6 +29,7 @@ interface SingleDayViewProps {
   events: IEvent[];
   onOpenDetails: (task: ITask) => void;
   onStatusChange: (id: string, status: TaskStatus) => void;
+  onDeleteTask: (task: ITask) => void;
   onQuickAddTask: (date: string, title: string) => void;
   onOpenAddEvent: (date: string) => void;
 }
@@ -42,6 +43,7 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
   events,
   onOpenDetails,
   onStatusChange,
+  onDeleteTask,
   onQuickAddTask,
   onOpenAddEvent,
 }) => {
@@ -259,13 +261,14 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
       {/* Tasks List */}
       <View style={styles.tasksList}>
         {filteredTasks.map((task) => (
-          <TaskCard
-            key={task._id}
-            theme={theme}
-            task={task}
-            onOpenDetails={onOpenDetails}
-            onStatusChange={onStatusChange}
-          />
+          <SwipeToDelete key={task._id} theme={theme} onDelete={() => onDeleteTask(task)}>
+            <TaskCard
+              theme={theme}
+              task={task}
+              onOpenDetails={onOpenDetails}
+              onStatusChange={onStatusChange}
+            />
+          </SwipeToDelete>
         ))}
 
         {filteredTasks.length === 0 && (

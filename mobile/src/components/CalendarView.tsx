@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { Text } from './ScaledText';
 import {
   ChevronLeft,
   ChevronRight,

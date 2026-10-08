@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { X, Bell } from 'lucide-react-native';
+import { Text, TextInput } from './ScaledText';
+import { X } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
+import { ReminderTimesEditor } from './ReminderTimesEditor';
 import { ITask, TaskStatus, TaskPriority, TaskType, DayInfo } from '../types';
 
 interface CreateTaskModalProps {
@@ -43,6 +43,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [assignedDate, setAssignedDate] = useState(defaultDate);
   const [estimatedHours, setEstimatedHours] = useState('1');
   const [remindersPerDay, setRemindersPerDay] = useState<number>(0);
+  const [reminderTimes, setReminderTimes] = useState<string[]>([]);
   const [labelInput, setLabelInput] = useState('');
   const [labels, setLabels] = useState<string[]>([]);
 
@@ -56,6 +57,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       setType('task');
       setEstimatedHours('1');
       setRemindersPerDay(0);
+      setReminderTimes([]);
       setLabels([]);
     }
   }, [isOpen, defaultDate]);
@@ -82,6 +84,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       assignedDate,
       estimatedHours: Number(estimatedHours) || 1,
       remindersPerDay,
+      reminderTimes,
       labels,
     });
     onClose();
@@ -179,49 +182,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             </View>
 
             {/* Daily Task Reminders Picker */}
-            <View style={styles.formGroup}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                <Bell size={14} color={theme.accent} />
-                <Text style={[styles.inputLabel, { color: theme.textSecondary, marginBottom: 0 }]}>
-                  Daily Reminders ({remindersPerDay === 0 ? 'Off' : `${remindersPerDay}x / day`})
-                </Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-                {[0, 1, 2, 3, 4, 5].map((count) => {
-                  const isSelected = remindersPerDay === count;
-                  return (
-                    <TouchableOpacity
-                      key={count}
-                      onPress={() => setRemindersPerDay(count)}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
-                            fontWeight: isSelected ? '800' : '600',
-                          },
-                        ]}
-                      >
-                        {count === 0 ? 'Off' : `🔔 ${count}/day`}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <Text style={{ fontSize: 11, color: theme.textMuted, marginTop: 4 }}>
-                {remindersPerDay === 0
-                  ? 'No notifications will be triggered for this task.'
-                  : `You will be notified up to ${remindersPerDay} time(s) a day until completed.`}
-              </Text>
-            </View>
+            <ReminderTimesEditor
+              theme={theme}
+              count={remindersPerDay}
+              times={reminderTimes}
+              onChange={(count, times) => {
+                setRemindersPerDay(count);
+                setReminderTimes(times);
+              }}
+            />
 
             {/* Status Picker */}
             <View style={styles.formGroup}>

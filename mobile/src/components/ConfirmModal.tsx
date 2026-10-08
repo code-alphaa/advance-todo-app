@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Text } from './ScaledText';
 import { AlertCircle } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 

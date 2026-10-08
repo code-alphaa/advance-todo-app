@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ITask, IEvent, AppNotification, MetaStats, TaskStatus } from '../types';
+import { formatDateToYYYYMMDD } from '../utils/dateUtils';
+import { getTaskReminderTimes, countPassedTimes } from '../utils/reminderTimes';
 
 const STORAGE_KEYS = {
   TASKS: '@tt_tasks',
@@ -7,6 +9,7 @@ const STORAGE_KEYS = {
   COUNTERS: '@tt_counters',
   NOTIFICATIONS: '@tt_notifications',
   THEME: '@tt_theme',
+  FONT_SCALE: '@tt_font_scale',
 };
 
 // Sequence Counter for TODO-1, TODO-2, etc.
@@ -70,6 +73,11 @@ export const offlineStorage = {
       const now = new Date().toISOString();
       const assignedDate = data.assignedDate || now.split('T')[0];
 
+      // Reminder times already behind us today count as sent, so a new task doesn't ping immediately
+      const todayStr = formatDateToYYYYMMDD(new Date());
+      const passedReminders =
+        assignedDate <= todayStr ? countPassedTimes(getTaskReminderTimes(data)) : 0;
+
       // Calculate order for column
       const sameDayTasks = tasks.filter((t) => t.assignedDate === assignedDate);
       const maxOrder = sameDayTasks.reduce((max, t) => Math.max(max, t.order || 0), -1);
@@ -93,8 +101,9 @@ export const offlineStorage = {
         estimatedHours: data.estimatedHours || 1,
         loggedHours: data.loggedHours || 0,
         remindersPerDay: data.remindersPerDay || 0,
-        remindersSentToday: 0,
-        lastReminderDate: null,
+        reminderTimes: data.reminderTimes || [],
+        remindersSentToday: passedReminders,
+        lastReminderDate: passedReminders > 0 ? todayStr : null,
         lastReminderTimestamp: null,
         createdAt: now,
         completedAt: data.status === 'DONE' ? now : null,
@@ -319,6 +328,24 @@ export const offlineStorage = {
       await AsyncStorage.setItem(STORAGE_KEYS.THEME, theme);
     } catch (e) {
       console.error('Failed to save theme:', e);
+    }
+  },
+
+  // FONT SCALE
+  async getFontScale(): Promise<number | null> {
+    try {
+      const saved = await AsyncStorage.getItem(STORAGE_KEYS.FONT_SCALE);
+      return saved ? Number(saved) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async saveFontScale(scale: number): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.FONT_SCALE, String(scale));
+    } catch (e) {
+      console.error('Failed to save font scale:', e);
     }
   },
 };

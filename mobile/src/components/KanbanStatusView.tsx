@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { Text } from './ScaledText';
 import { Plus } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { ITask, DayInfo, TaskStatus } from '../types';

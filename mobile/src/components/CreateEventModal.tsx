@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import { X, Clock, Bell, MapPin, Palette } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { IEvent } from '../types';

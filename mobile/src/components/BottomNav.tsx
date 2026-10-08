@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Text } from './ScaledText';
 import { Calendar as DayIcon, CalendarDays, Kanban, Calendar as CalIcon, Plus } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 

@@ -34,6 +34,7 @@ export interface ITask {
   estimatedHours: number;
   loggedHours: number;
   remindersPerDay?: number; // 0 = off, 1..5 = times per day
+  reminderTimes?: string[]; // HH:mm, one per daily reminder
   remindersSentToday?: number;
   lastReminderDate?: string | null;
   lastReminderTimestamp?: string | null;

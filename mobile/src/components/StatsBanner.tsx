@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Text } from './ScaledText';
 import { RefreshCw, CheckCircle2 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { MetaStats } from '../types';
@@ -54,7 +55,7 @@ export const StatsBanner: React.FC<StatsBannerProps> = ({
             <RefreshCw size={12} color={theme.accent} />
           )}
           <Text style={[styles.syncText, { color: theme.textMain }]}>
-            {isRollingOver ? 'Syncing...' : 'Sync Rollover'}
+            {isRollingOver ? 'Syncing...' : 'Sync'}
           </Text>
         </TouchableOpacity>
       </View>
