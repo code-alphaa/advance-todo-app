@@ -5,6 +5,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { darkTheme, lightTheme, ThemeColors } from './src/theme/colors';
 import { offlineStorage } from './src/services/storage';
+import { requestNotificationPermission, playNotificationAlert } from './src/services/notifications';
 import {
   ITask,
   IEvent,
@@ -37,6 +38,7 @@ import { InAppNotificationBanner } from './src/components/InAppNotificationBanne
 export default function App() {
   // Theme state
   const [isDark, setIsDark] = useState<boolean>(true);
+  const [themeLoaded, setThemeLoaded] = useState(false);
   const theme: ThemeColors = isDark ? darkTheme : lightTheme;
 
   // Today reference
@@ -106,9 +108,12 @@ export default function App() {
     const initApp = async () => {
       const savedTheme = await offlineStorage.getTheme();
       setIsDark(savedTheme === 'dark');
+      setThemeLoaded(true);
 
       const savedNotifs = await offlineStorage.getNotifications();
       setNotifications(savedNotifs);
+
+      await requestNotificationPermission();
     };
     initApp();
   }, []);
@@ -177,10 +182,10 @@ export default function App() {
                 : `starts in 1 minute!`;
 
             // Display in-app banner
-            setActiveBanner({
-              title: `Reminder: ${evt.title}`,
-              message: `Event ${timingText} on ${evt.eventDate}${evt.location ? ` at ${evt.location}` : ''}.`,
-            });
+            const bannerTitle = `Reminder: ${evt.title}`;
+            const bannerMessage = `Event ${timingText} on ${evt.eventDate}${evt.location ? ` at ${evt.location}` : ''}.`;
+            setActiveBanner({ title: bannerTitle, message: bannerMessage });
+            playNotificationAlert(bannerTitle, bannerMessage);
 
             // Save to notifications
             const newNotif: AppNotification = {
@@ -245,10 +250,10 @@ export default function App() {
               );
 
               // Display in-app banner
-              setActiveBanner({
-                title: `Task Reminder: [${t.key}]`,
-                message: `${t.title} • Daily reminder (${newSent}/${t.remindersPerDay}).`,
-              });
+              const bannerTitle = `Task Reminder: [${t.key}]`;
+              const bannerMessage = `${t.title} • Daily reminder (${newSent}/${t.remindersPerDay}).`;
+              setActiveBanner({ title: bannerTitle, message: bannerMessage });
+              playNotificationAlert(bannerTitle, bannerMessage);
 
               // Save to notifications
               const newNotif: AppNotification = {
@@ -396,6 +401,9 @@ export default function App() {
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Avoid flashing the default theme before the saved one is restored
+  if (!themeLoaded) return null;
 
   return (
     <SafeAreaProvider>

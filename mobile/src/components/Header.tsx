@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Calendar, Bell, Sun, Moon, Plus } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 
@@ -22,11 +22,9 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.bgCard, borderBottomColor: theme.border }]}>
-      {/* Left: Monogram and Branding */}
+      {/* Left: Logo and Branding */}
       <View style={styles.brandRow}>
-        <View style={[styles.monogram, { backgroundColor: theme.accent }]}>
-          <Text style={[styles.monogramText, { color: theme.textOnAccent }]}>TT</Text>
-        </View>
+        <Image source={require('../../assets/logo.png')} style={styles.logo} />
         <View style={styles.titleCol}>
           <Text style={[styles.brandTitle, { color: theme.textMain }]}>TT | Task Tracker</Text>
           <View style={styles.todayRow}>
@@ -100,17 +98,9 @@ const styles = StyleSheet.create({
     gap: 10,
     flex: 1,
   },
-  monogram: {
+  logo: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monogramText: {
-    fontWeight: '900',
-    fontSize: 13,
-    letterSpacing: 0.5,
   },
   titleCol: {
     justifyContent: 'center',
