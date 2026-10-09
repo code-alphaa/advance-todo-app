@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';
-import { ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { DayInfo } from '../types';
 
@@ -9,8 +9,6 @@ interface WeekNavigatorProps {
   theme: ThemeColors;
   weekDays: DayInfo[];
   todayDateDisplay?: string;
-  isDark?: boolean;
-  onToggleTheme?: () => void;
   onPrevWeek: () => void;
   onNextWeek: () => void;
   onJumpToToday: () => void;
@@ -20,8 +18,6 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
   theme,
   weekDays,
   todayDateDisplay,
-  isDark,
-  onToggleTheme,
   onPrevWeek,
   onNextWeek,
   onJumpToToday,
@@ -55,7 +51,7 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
 
         <TouchableOpacity
           onPress={onJumpToToday}
-          style={[styles.todayButton, { backgroundColor: theme.columnHeader, borderColor: theme.border }] }
+          style={[styles.todayButton, { backgroundColor: theme.columnHeader, borderColor: theme.border }]}
           activeOpacity={0.7}
         >
           <Text style={[styles.todayButtonText, { color: theme.textMain }]}>TODAY</Text>
@@ -69,21 +65,6 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
         >
           <ChevronRight size={16} color={theme.textMuted} />
         </TouchableOpacity>
-
-        {onToggleTheme && (
-          <TouchableOpacity
-            onPress={onToggleTheme}
-            style={[styles.themeBtn, { backgroundColor: theme.columnHeader, borderColor: theme.border }]}
-            activeOpacity={0.7}
-            accessibilityLabel="Toggle Theme"
-          >
-            {isDark ? (
-              <Sun size={13} color={theme.accent} />
-            ) : (
-              <Moon size={13} color={theme.accent} />
-            )}
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );
@@ -123,20 +104,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   todayButtonText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    lineHeight: 12,
   },
   todayDateText: {
-    fontSize: 8.5,
+    fontSize: 9,
     fontWeight: '600',
-    marginTop: 0.5,
-  },
-  themeBtn: {
-    padding: 5,
-    borderRadius: 9,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    lineHeight: 11,
   },
 });

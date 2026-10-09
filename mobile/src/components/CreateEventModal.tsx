@@ -3,11 +3,13 @@ import {
   Modal,
   View,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { CenterModal } from './CenterModal';
 import { Text, TextInput } from './ScaledText';
 import { X, Clock, Bell, MapPin, Palette } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
@@ -83,17 +85,13 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <CenterModal
+      theme={theme}
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth={460}
+      maxHeight="86%"
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.backdrop, { backgroundColor: theme.modalBackdrop }]}
-      >
-        <View style={[styles.dialog, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
           {/* Header */}
           <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
             <Text style={[styles.dialogTitle, { color: theme.textMain }]}>Add Calendar Event</Text>
@@ -120,122 +118,122 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
               />
             </View>
 
-            {/* Event Date */}
+            {/* Date */}
             <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Event Date (YYYY-MM-DD)</Text>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Date (YYYY-MM-DD)</Text>
               <TextInput
                 value={eventDate}
                 onChangeText={setEventDate}
-                placeholder="2026-10-07"
+                placeholder="YYYY-MM-DD"
                 placeholderTextColor={theme.textMuted}
                 style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
               />
             </View>
 
-            {/* Times */}
+            {/* Start & End Times */}
             <View style={styles.rowTwoCols}>
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Start Time</Text>
+                <View style={styles.labelRow}>
+                  <Clock size={12} color={theme.accent} />
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Start Time</Text>
+                </View>
                 <TextInput
                   value={startTime}
                   onChangeText={setStartTime}
-                  placeholder="10:00"
+                  placeholder="HH:mm"
                   placeholderTextColor={theme.textMuted}
                   style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
                 />
               </View>
 
               <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>End Time</Text>
+                <View style={styles.labelRow}>
+                  <Clock size={12} color={theme.textMuted} />
+                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>End Time</Text>
+                </View>
                 <TextInput
                   value={endTime}
                   onChangeText={setEndTime}
-                  placeholder="11:00"
+                  placeholder="HH:mm"
                   placeholderTextColor={theme.textMuted}
                   style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
                 />
-              </View>
-            </View>
-
-            {/* Reminder Offset */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Bell size={13} color={theme.accent} />
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>App Notification Reminder</Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-                {REMINDER_OPTIONS.map((opt) => {
-                  const isSelected = reminderMinutes === opt.value;
-                  return (
-                    <TouchableOpacity
-                      key={opt.value}
-                      onPress={() => setReminderMinutes(opt.value)}
-                      style={[
-                        styles.chip,
-                        {
-                          backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                          borderColor: isSelected ? theme.accent : theme.border,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          {
-                            color: isSelected ? theme.textOnAccent : theme.textSecondary,
-                            fontWeight: isSelected ? '800' : '600',
-                          },
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* Event Color Picker */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Palette size={13} color={theme.accent} />
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Event Color</Text>
-              </View>
-              <View style={styles.colorsRow}>
-                {COLOR_PRESETS.map((c) => {
-                  const isSelected = color === c;
-                  return (
-                    <TouchableOpacity
-                      key={c}
-                      onPress={() => setColor(c)}
-                      style={[
-                        styles.colorSwatch,
-                        { backgroundColor: c },
-                        isSelected && { borderColor: theme.textMain, borderWidth: 3 },
-                      ]}
-                    />
-                  );
-                })}
               </View>
             </View>
 
             {/* Location */}
             <View style={styles.formGroup}>
               <View style={styles.labelRow}>
-                <MapPin size={13} color={theme.textMuted} />
+                <MapPin size={12} color={theme.accent} />
                 <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Location / Link (Optional)</Text>
               </View>
               <TextInput
-                placeholder="Google Meet, Conference Room A..."
-                placeholderTextColor={theme.textMuted}
                 value={location}
                 onChangeText={setLocation}
+                placeholder="e.g. Google Meet, Room 302..."
+                placeholderTextColor={theme.textMuted}
                 style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
               />
             </View>
+
+            {/* Reminder */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Bell size={12} color={theme.accent} />
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Notification Reminder</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                {REMINDER_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    onPress={() => setReminderMinutes(opt.value)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: reminderMinutes === opt.value ? theme.accent : theme.bgApp,
+                        borderColor: reminderMinutes === opt.value ? theme.accent : theme.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {
+                          color: reminderMinutes === opt.value ? theme.textOnAccent : theme.textSecondary,
+                          fontWeight: reminderMinutes === opt.value ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Color Swatches */}
+            <View style={styles.formGroup}>
+              <View style={styles.labelRow}>
+                <Palette size={12} color={theme.accent} />
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Badge Color</Text>
+              </View>
+              <View style={styles.colorsRow}>
+                {COLOR_PRESETS.map((c) => (
+                  <TouchableOpacity
+                    key={c}
+                    onPress={() => setColor(c)}
+                    style={[
+                      styles.colorSwatch,
+                      { backgroundColor: c },
+                      color === c && { borderWidth: 3, borderColor: theme.textMain },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
           </ScrollView>
 
-          {/* Footer Actions */}
+          {/* Footer */}
           <View style={[styles.dialogFooter, { borderTopColor: theme.border }]}>
             <TouchableOpacity
               onPress={onClose}
@@ -261,23 +259,11 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </CenterModal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  dialog: {
-    maxHeight: '90%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-  },
   dialogHeader: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { CenterModal } from './CenterModal';
 import { Text } from './ScaledText';
 import { ThemeColors } from '../theme/colors';
 
@@ -48,34 +49,30 @@ const Wheel: React.FC<WheelProps> = ({ theme, items, selectedIndex, onChange, wi
       ref={ref}
       style={{ width, height: ITEM_HEIGHT * VISIBLE_ROWS }}
       contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * PAD_ROWS }}
-      showsVerticalScrollIndicator={false}
       snapToInterval={ITEM_HEIGHT}
       decelerationRate="fast"
+      showsVerticalScrollIndicator={false}
       onMomentumScrollEnd={handleScrollEnd}
-      onScrollEndDrag={(e) => {
-        // A drag without momentum doesn't fire onMomentumScrollEnd
-        if (!e.nativeEvent.velocity || Math.abs(e.nativeEvent.velocity.y) < 0.05) handleScrollEnd(e);
-      }}
     >
-      {items.map((item, i) => {
-        const isSelected = i === selectedIndex;
+      {items.map((item, index) => {
+        const isSelected = index === selectedIndex;
         return (
           <TouchableOpacity
             key={item}
-            style={styles.item}
             activeOpacity={0.6}
+            style={[styles.item, { height: ITEM_HEIGHT }]}
             onPress={() => {
-              ref.current?.scrollTo({ y: i * ITEM_HEIGHT, animated: true });
-              onChange(i);
+              ref.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
+              onChange(index);
             }}
           >
             <Text
               style={[
                 styles.itemText,
                 {
-                  color: isSelected ? theme.textMain : theme.textMuted,
+                  color: isSelected ? theme.accent : theme.textMuted,
                   fontWeight: isSelected ? '800' : '500',
-                  opacity: isSelected ? 1 : 0.7,
+                  opacity: isSelected ? 1 : 0.45,
                 },
               ]}
             >
@@ -92,7 +89,7 @@ interface TimeWheelPickerProps {
   theme: ThemeColors;
   visible: boolean;
   title: string;
-  value: string; // HH:mm (24h)
+  value: string; // "HH:mm" 24h format
   onCancel: () => void;
   onConfirm: (time: string) => void;
 }
@@ -127,9 +124,13 @@ export const TimeWheelPicker: React.FC<TimeWheelPickerProps> = ({
   }, [visible, value]);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={[styles.backdrop, { backgroundColor: theme.modalBackdrop }]} onPress={onCancel}>
-        <Pressable style={[styles.sheet, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
+    <CenterModal
+      theme={theme}
+      isOpen={visible}
+      onClose={onCancel}
+      maxWidth={340}
+      dialogStyle={{ paddingBottom: 16 }}
+    >
           <View style={[styles.sheetHeader, { borderBottomColor: theme.border }]}>
             <TouchableOpacity onPress={onCancel} hitSlop={8}>
               <Text style={[styles.headerBtn, { color: theme.textMuted }]}>Cancel</Text>
@@ -174,23 +175,11 @@ export const TimeWheelPicker: React.FC<TimeWheelPickerProps> = ({
               />
             </View>
           )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </CenterModal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    paddingBottom: 32,
-  },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,19 +208,20 @@ const styles = StyleSheet.create({
     right: 40,
     top: 12 + ITEM_HEIGHT * PAD_ROWS,
     height: ITEM_HEIGHT,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
   },
   item: {
-    height: ITEM_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   itemText: {
-    fontSize: 20,
+    fontSize: 18,
   },
   colon: {
     fontSize: 20,
     fontWeight: '800',
+    alignSelf: 'center',
+    paddingHorizontal: 2,
   },
 });

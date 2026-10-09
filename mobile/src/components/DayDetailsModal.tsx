@@ -3,10 +3,12 @@ import {
   Modal,
   View,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
   Platform,
 } from 'react-native';
+import { CenterModal } from './CenterModal';
 import { Text } from './ScaledText';
 import {
   X,
@@ -54,19 +56,16 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
   onAddEvent,
   onDeleteEvent,
 }) => {
-  if (!isOpen) return null;
-
   const isToday = dateStr === todayDateStr;
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <CenterModal
+      theme={theme}
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth={460}
+      maxHeight="85%"
     >
-      <View style={[styles.backdrop, { backgroundColor: theme.modalBackdrop }]}>
-        <View style={[styles.dialog, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
           {/* Header */}
           <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
             <View style={styles.headerTitleRow}>
@@ -320,24 +319,11 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
               </View>
             )}
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </CenterModal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  dialog: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    maxHeight: '85%',
-  },
   dialogHeader: {
     flexDirection: 'row',
     alignItems: 'center',

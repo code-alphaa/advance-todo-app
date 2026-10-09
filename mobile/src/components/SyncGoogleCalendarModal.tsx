@@ -3,11 +3,13 @@ import {
   Modal,
   View,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   Linking,
   ScrollView,
 } from 'react-native';
+import { CenterModal } from './CenterModal';
 import { Text, TextInput } from './ScaledText';
 import {
   Calendar,
@@ -38,22 +40,23 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
 }) => {
   const [icalUrl, setIcalUrl] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(null);
   const [statusResult, setStatusResult] = useState<SyncResult | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
-      loadSavedState();
+      loadStoredConfig();
     }
   }, [visible]);
 
-  const loadSavedState = async () => {
-    const saved = await googleCalendarSyncService.getSavedIcalUrl();
-    if (saved) setIcalUrl(saved);
-    const last = await googleCalendarSyncService.getLastSyncTime();
-    if (last) setLastSync(last);
-    setStatusResult(null);
+  const loadStoredConfig = async () => {
+    const [savedUrl, lastSyncTime] = await Promise.all([
+      googleCalendarSyncService.getSavedIcalUrl(),
+      googleCalendarSyncService.getLastSyncTime(),
+    ]);
+    if (savedUrl) setIcalUrl(savedUrl);
+    if (lastSyncTime) setLastSync(lastSyncTime);
   };
 
   const handleSync = async () => {
@@ -76,22 +79,13 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
+    <CenterModal
+      theme={theme}
+      isOpen={visible}
+      onClose={onClose}
+      maxWidth={460}
+      maxHeight="86%"
     >
-      <View style={styles.backdrop}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.bgCard,
-              borderColor: theme.border,
-            },
-          ]}
-        >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleGroup}>
@@ -272,27 +266,11 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
-    </Modal>
+    </CenterModal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  card: {
-    width: '100%',
-    maxHeight: '85%',
-    borderRadius: 18,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -323,19 +301,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollArea: {
-    maxHeight: 400,
+    paddingHorizontal: 16,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingVertical: 8,
     gap: 12,
   },
   inputGroup: {
@@ -346,20 +323,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   input: {
-    borderWidth: 1,
     borderRadius: 10,
+    borderWidth: 1,
     padding: 10,
     fontSize: 12,
+    minHeight: 65,
     textAlignVertical: 'top',
-    height: 70,
   },
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    borderWidth: 1,
-    borderRadius: 10,
     padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   statusText: {
     fontSize: 12,
@@ -383,15 +360,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   helpHeaderTitle: {
     fontSize: 12,
     fontWeight: '700',
   },
   helpBody: {
+    padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    padding: 12,
     gap: 6,
   },
   stepItem: {
@@ -418,18 +396,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 10,
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
   },
   cancelBtn: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
   },
   cancelBtnText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   syncBtn: {
     flexDirection: 'row',
@@ -440,8 +419,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   syncBtnText: {
-    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

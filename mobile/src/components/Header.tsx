@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, Image, Text as FixedText } from 'react-native';
 import { Text } from './ScaledText';
-import { Calendar, Bell, Sun, Moon } from 'lucide-react-native';
+import { Calendar, Bell } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { useFontScale } from '../theme/fontScale';
 import { DropdownAnchor } from './NotificationDropdown';
@@ -10,7 +10,6 @@ interface HeaderProps {
   theme: ThemeColors;
   todayDisplay: string;
   unreadCount: number;
-  onToggleTheme: () => void;
   onOpenNotifications: (anchor: DropdownAnchor) => void;
   onIncreaseFont: () => void;
   onDecreaseFont: () => void;
@@ -20,7 +19,6 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   todayDisplay,
   unreadCount,
-  onToggleTheme,
   onOpenNotifications,
   onIncreaseFont,
   onDecreaseFont,
@@ -95,18 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Theme Toggle */}
-        <TouchableOpacity
-          onPress={onToggleTheme}
-          style={[styles.iconButton, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
-          activeOpacity={0.7}
-        >
-          {theme.isDark ? (
-            <Sun size={16} color="#FBBF24" />
-          ) : (
-            <Moon size={16} color={theme.accent} />
-          )}
-        </TouchableOpacity>
+
 
       </View>
     </View>

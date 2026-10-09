@@ -30,7 +30,6 @@ import {
 import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTimes';
 
 import { WeekNavigator } from './src/components/WeekNavigator';
-import { StatsBanner } from './src/components/StatsBanner';
 import { BottomNav } from './src/components/BottomNav';
 import { SingleDayView } from './src/components/SingleDayView';
 import { WeeklyBoardView } from './src/components/WeeklyBoardView';
@@ -487,26 +486,16 @@ export default function App() {
             onDismiss={() => setActiveBanner(null)}
           />
 
-          {/* Week Navigator & Stats Banner for non-day views */}
-        {currentView !== 'day' && (
-          <>
+          {/* Week Navigator for non-day views */}
+          {currentView !== 'day' && (
             <WeekNavigator
               theme={theme}
               weekDays={weekDays}
-              isDark={isDark}
-              onToggleTheme={handleToggleTheme}
               onPrevWeek={handlePrevWeek}
               onNextWeek={handleNextWeek}
               onJumpToToday={handleJumpToToday}
             />
-            <StatsBanner
-              theme={theme}
-              stats={stats}
-              onTriggerRollover={handleTriggerRollover}
-              isRollingOver={isRollingOver}
-            />
-          </>
-        )}
+          )}
 
           {/* Body Views */}
           <View style={styles.content}>
@@ -545,12 +534,6 @@ export default function App() {
                       onNextWeek={handleNextWeek}
                       onJumpToToday={handleJumpToToday}
                     />
-                    <StatsBanner
-                      theme={theme}
-                      stats={stats}
-                      onTriggerRollover={handleTriggerRollover}
-                      isRollingOver={isRollingOver}
-                    />
                   </View>
                 }
               />
@@ -572,7 +555,6 @@ export default function App() {
                 }}
               />
             ) : (
-
               <CalendarView
                 theme={theme}
                 events={events}

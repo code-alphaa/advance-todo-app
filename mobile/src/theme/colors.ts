@@ -49,7 +49,7 @@ export const darkTheme: ThemeColors = {
   highOrange: '#F97316',
   mediumYellow: '#EFD395',   // Straw Yellow
   lowBlue: '#06B6D4',
-  modalBackdrop: 'rgba(19, 19, 19, 0.85)',
+  modalBackdrop: 'transparent',
 };
 
 export const lightTheme: ThemeColors = {
@@ -76,5 +76,5 @@ export const lightTheme: ThemeColors = {
   highOrange: '#F97316',
   mediumYellow: '#F9DC5C',   // Naples Yellow
   lowBlue: '#06B6D4',
-  modalBackdrop: 'rgba(31, 30, 29, 0.5)',
+  modalBackdrop: 'transparent',
 };

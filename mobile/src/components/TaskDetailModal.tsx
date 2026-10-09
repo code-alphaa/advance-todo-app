@@ -3,11 +3,13 @@ import {
   Modal,
   View,
   TouchableOpacity,
+  Pressable,
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { CenterModal } from './CenterModal';
 import { Text, TextInput } from './ScaledText';
 import {
   X,
@@ -128,17 +130,13 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   const completedSubtasksCount = subtasks.filter((s) => s.completed).length;
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <CenterModal
+      theme={theme}
+      isOpen={isOpen}
+      onClose={onClose}
+      maxWidth={460}
+      maxHeight="88%"
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.backdrop, { backgroundColor: theme.modalBackdrop }]}
-      >
-        <View style={[styles.dialog, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
           {/* Header (No Type Badge) */}
           <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
             <View style={styles.headerLeft}>
@@ -483,24 +481,11 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               <Text style={[styles.saveBtnText, { color: theme.textOnAccent }]}>Save Changes</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </CenterModal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  dialog: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    maxHeight: '92%',
-  },
   dialogHeader: {
     flexDirection: 'row',
     alignItems: 'center',

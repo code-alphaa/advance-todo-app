@@ -10,6 +10,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './ScaledText';
 import { Bell, Trash2, CheckCircle2 } from 'lucide-react-native';
@@ -105,9 +106,13 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-        <Animated.View
-          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.18)', opacity: progress }]}
-        />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
+          <BlurView
+            intensity={theme.isDark ? 30 : 40}
+            tint={theme.isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
       </Pressable>
 
       <Animated.View
@@ -233,42 +238,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
   },
   title: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
+    letterSpacing: -0.2,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   actionText: {
     fontSize: 11,
     fontWeight: '700',
   },
   body: {
-    flexGrow: 0,
     flexShrink: 1,
   },
   bodyContent: {
-    padding: 12,
+    padding: 10,
     gap: 8,
   },
   notifCard: {
+    borderRadius: 10,
     padding: 10,
-    borderRadius: 12,
     gap: 4,
   },
   notifHeader: {
@@ -279,20 +286,21 @@ const styles = StyleSheet.create({
   },
   notifTitle: {
     fontSize: 12,
-    fontWeight: '800',
-    flexShrink: 1,
+    fontWeight: '700',
+    flex: 1,
   },
   notifTime: {
     fontSize: 10,
+    fontVariant: ['tabular-nums'],
   },
   notifMessage: {
     fontSize: 11,
-    lineHeight: 16,
+    lineHeight: 15,
   },
   emptyContainer: {
+    paddingVertical: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 28,
     gap: 8,
   },
   emptyText: {
