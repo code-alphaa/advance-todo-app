@@ -17,6 +17,8 @@ interface UnlockNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Called after the modal has fully closed, safe for presenting another modal */
+  onClosed?: () => void;
   noteTitle?: string;
 }
 
@@ -25,6 +27,7 @@ export const UnlockNoteModal: React.FC<UnlockNoteModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  onClosed,
   noteTitle,
 }) => {
   const [password, setPassword] = useState('');
@@ -128,7 +131,7 @@ export const UnlockNoteModal: React.FC<UnlockNoteModalProps> = ({
   };
 
   return (
-    <CenterModal theme={theme} isOpen={isOpen} onClose={onClose}>
+    <CenterModal theme={theme} isOpen={isOpen} onClose={onClose} onClosed={onClosed}>
       <View
         style={[
           styles.container,

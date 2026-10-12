@@ -25,7 +25,12 @@ export interface CenterModalProps {
   maxHeight?: DimensionValue;
   avoidKeyboard?: boolean;
   dismissOnBackdrop?: boolean;
+  /** Called once the modal has fully closed and been removed from the screen */
+  onClosed?: () => void;
 }
+
+// Gives iOS time to finish dismissing this modal before another one is presented
+const DISMISS_SETTLE_MS = 120;
 
 export const CenterModal: React.FC<CenterModalProps> = ({
   theme,
@@ -37,8 +42,14 @@ export const CenterModal: React.FC<CenterModalProps> = ({
   maxHeight = '85%',
   avoidKeyboard = true,
   dismissOnBackdrop = true,
+  onClosed,
 }) => {
   const [isMounted, setIsMounted] = useState(isOpen);
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
+  const onClosedRef = useRef(onClosed);
+  onClosedRef.current = onClosed;
+  const wasMounted = useRef(isMounted);
   const animProgress = useRef(new Animated.Value(isOpen ? 1 : 0)).current;
   const dialogLayoutRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
@@ -60,13 +71,26 @@ export const CenterModal: React.FC<CenterModalProps> = ({
         duration: 180,
         easing: Easing.bezier(0.4, 0, 1, 1), // Smooth accelerated fade out
         useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
+      }).start(() => {
+        // Unmount even if the animation was interrupted (e.g. by a Face ID prompt
+        // backgrounding the app); otherwise an invisible modal would keep
+        // swallowing every touch. Skip only if the modal was reopened meanwhile.
+        if (!isOpenRef.current) {
           setIsMounted(false);
         }
       });
     }
   }, [isOpen]);
+
+  // Notify once the modal has actually left the screen
+  useEffect(() => {
+    if (wasMounted.current && !isMounted) {
+      const timer = setTimeout(() => onClosedRef.current?.(), DISMISS_SETTLE_MS);
+      wasMounted.current = isMounted;
+      return () => clearTimeout(timer);
+    }
+    wasMounted.current = isMounted;
+  }, [isMounted]);
 
   if (!isMounted) return null;
 

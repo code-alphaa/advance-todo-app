@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Image,
   Alert,
 } from 'react-native';
 import { CenterModal } from './CenterModal';
@@ -19,11 +18,27 @@ import {
   Camera,
   Lock,
   Unlock,
+  FileText,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { INote, NoteColorId } from '../types';
 import { NOTE_COLORS, NOTE_COLOR_KEYS } from '../theme/noteColors';
 import { PressableScale } from './PressableScale';
+import { NoteMediaThumb } from './NoteMediaThumb';
+import { MediaViewerModal } from './MediaViewerModal';
+import { persistNoteMedia } from '../utils/noteMedia';
+
+async function getDocumentPickerModule() {
+  try {
+    const DocumentPicker = await import('expo-document-picker');
+    if (DocumentPicker && typeof DocumentPicker.getDocumentAsync === 'function') {
+      return DocumentPicker;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // Safe dynamic loader to avoid crashing if native module is not linked in running binary
 async function getImagePickerModule() {
@@ -44,6 +59,8 @@ interface NoteModalProps {
   onClose: () => void;
   onSubmit: (data: Partial<INote>) => void;
   onDelete?: (id: string) => void;
+  /** Called after the modal has fully closed, safe for presenting another modal */
+  onClosed?: () => void;
   note?: INote | null;
 }
 
@@ -53,6 +70,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   onClose,
   onSubmit,
   onDelete,
+  onClosed,
   note,
 }) => {
   const [title, setTitle] = useState('');
@@ -61,6 +79,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
   const [isPinned, setIsPinned] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [media, setMedia] = useState<string[]>([]);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,6 +98,8 @@ export const NoteModal: React.FC<NoteModalProps> = ({
         setIsLocked(false);
         setMedia([]);
       }
+    } else {
+      setViewerIndex(null);
     }
   }, [isOpen, note]);
 
@@ -105,14 +126,14 @@ export const NoteModal: React.FC<NoteModalProps> = ({
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ['images', 'videos'],
         allowsMultipleSelection: true,
         selectionLimit: 5,
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uris = result.assets.map((a) => a.uri);
+        const uris = result.assets.map((a) => persistNoteMedia(a.uri, a.fileName ?? undefined));
         setMedia((prev) => [...prev, ...uris]);
       }
     } catch (e) {
@@ -145,10 +166,36 @@ export const NoteModal: React.FC<NoteModalProps> = ({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setMedia((prev) => [...prev, result.assets[0].uri]);
+        setMedia((prev) => [...prev, persistNoteMedia(result.assets[0].uri)]);
       }
     } catch (e) {
       console.warn('Error taking photo:', e);
+    }
+  };
+
+  const handlePickPdf = async () => {
+    try {
+      const DocumentPicker = await getDocumentPickerModule();
+      if (!DocumentPicker) {
+        Alert.alert(
+          'File Picker Unavailable',
+          'The file picker is not yet compiled into the current build. Please rebuild the app to attach PDFs.'
+        );
+        return;
+      }
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uris = result.assets.map((a) => persistNoteMedia(a.uri, a.name));
+        setMedia((prev) => [...prev, ...uris]);
+      }
+    } catch (e) {
+      console.warn('Error picking PDF:', e);
     }
   };
 
@@ -181,6 +228,7 @@ export const NoteModal: React.FC<NoteModalProps> = ({
       maxWidth={440}
       maxHeight="88%"
       avoidKeyboard={true}
+      onClosed={onClosed}
     >
       {/* Header */}
       <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
@@ -282,6 +330,14 @@ export const NoteModal: React.FC<NoteModalProps> = ({
                 <Camera size={14} color={theme.accent} />
                 <Text style={[styles.attachBtnText, { color: theme.textMain }]}>Camera</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handlePickPdf}
+                style={[styles.attachBtn, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
+                activeOpacity={0.7}
+              >
+                <FileText size={14} color={theme.accent} />
+                <Text style={[styles.attachBtnText, { color: theme.textMain }]}>PDF</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -289,7 +345,13 @@ export const NoteModal: React.FC<NoteModalProps> = ({
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mediaScroller}>
               {media.map((uri, idx) => (
                 <View key={`${uri}_${idx}`} style={styles.mediaThumbWrap}>
-                  <Image source={{ uri }} style={styles.mediaThumb} resizeMode="cover" />
+                  <PressableScale
+                    onPress={() => setViewerIndex(idx)}
+                    activeScale={0.94}
+                    accessibilityLabel="Open attachment"
+                  >
+                    <NoteMediaThumb uri={uri} style={styles.mediaThumb} />
+                  </PressableScale>
                   <TouchableOpacity
                     onPress={() => handleRemoveMedia(idx)}
                     style={styles.mediaRemoveBtn}
@@ -475,6 +537,14 @@ export const NoteModal: React.FC<NoteModalProps> = ({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Full-screen attachment viewer */}
+      <MediaViewerModal
+        isOpen={viewerIndex !== null}
+        media={media}
+        initialIndex={viewerIndex ?? 0}
+        onClose={() => setViewerIndex(null)}
+      />
     </CenterModal>
   );
 };
@@ -583,8 +653,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   mediaThumb: {
-    width: '100%',
-    height: '100%',
+    width: 72,
+    height: 72,
   },
   mediaRemoveBtn: {
     position: 'absolute',

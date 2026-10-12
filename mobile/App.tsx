@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { StyleSheet, View, ActivityIndicator, useColorScheme, Appearance, Animated, AppState } from 'react-native';
 import { Text } from './src/components/ScaledText';
 import { StatusBar } from 'expo-status-bar';
@@ -29,6 +29,7 @@ import {
 } from './src/utils/dateUtils';
 import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTimes';
 import { animateNextLayout } from './src/utils/layoutAnimation';
+import { deleteNoteMedia } from './src/utils/noteMedia';
 
 import { WeekNavigator } from './src/components/WeekNavigator';
 import { BottomNav, AppViewType } from './src/components/BottomNav';
@@ -111,6 +112,9 @@ export default function App() {
   const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<INote | null>(null);
   const [isEditNoteOpen, setIsEditNoteOpen] = useState(false);
+  const noteDeleteAfterClose = useRef<{ id: string; type: 'note'; title: string } | null>(null);
+  // Bumped to re-lock every secure note (tab change or app sent to background)
+  const [notesLockSignal, setNotesLockSignal] = useState(0);
 
   const [confirmDelete, setConfirmDelete] = useState<{
     id: string;
@@ -234,6 +238,20 @@ export default function App() {
       clearInterval(interval);
     };
   }, [loadData]);
+
+  // Secure notes lock again as soon as the app leaves the screen. Only
+  // 'background' counts: Face ID prompts briefly make the app 'inactive'.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'background') return;
+      setNotesLockSignal((n) => n + 1);
+      if (selectedNote?.isLocked) {
+        setIsEditNoteOpen(false);
+        setSelectedNote(null);
+      }
+    });
+    return () => sub.remove();
+  }, [selectedNote]);
 
   // Periodic Reminder Engine (Every 10 seconds)
   useEffect(() => {
@@ -396,6 +414,7 @@ export default function App() {
 
   // Switching tabs always snaps the view back to today's date/week (when applicable)
   const handleViewChange = (view: AppViewType) => {
+    if (view !== currentView) setNotesLockSignal((n) => n + 1);
     setCurrentView(view);
     if (view !== 'notes') {
       handleJumpToToday();
@@ -527,7 +546,11 @@ export default function App() {
 
   const handleUpdateNote = async (id: string, updates: Partial<INote>) => {
     try {
+      const previousMedia = notes.find((n) => n._id === id)?.media ?? [];
       const updated = await offlineStorage.updateNote(id, updates);
+      if (updates.media) {
+        deleteNoteMedia(previousMedia.filter((m) => !updates.media!.includes(m)));
+      }
       animateNextLayout();
       setNotes((prev) =>
         prev.map((n) => (n._id === id ? updated : n))
@@ -543,7 +566,9 @@ export default function App() {
 
   const handleDeleteNote = async (id: string) => {
     try {
+      const deletedMedia = notes.find((n) => n._id === id)?.media ?? [];
       await offlineStorage.deleteNote(id);
+      deleteNoteMedia(deletedMedia);
       animateNextLayout();
       setNotes((prev) => prev.filter((n) => n._id !== id));
       setActiveBanner({
@@ -712,6 +737,7 @@ export default function App() {
                     setConfirmDelete({ id, type: 'note', title });
                   }}
                   onArchiveNote={handleArchiveNote}
+                  lockSignal={notesLockSignal}
                 />
               )}
             </Animated.View>
@@ -788,11 +814,17 @@ export default function App() {
                 }
               }}
               onDelete={(id) => {
-                setConfirmDelete({
+                // Shown once the editor has fully closed (iOS can't stack the two)
+                noteDeleteAfterClose.current = {
                   id,
                   type: 'note',
                   title: selectedNote?.title || 'note',
-                });
+                };
+              }}
+              onClosed={() => {
+                const pending = noteDeleteAfterClose.current;
+                noteDeleteAfterClose.current = null;
+                if (pending) setConfirmDelete(pending);
               }}
               note={selectedNote}
             />

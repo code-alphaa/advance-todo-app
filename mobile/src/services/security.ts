@@ -43,7 +43,7 @@ export const securityService = {
       const result = await LocalAuth.authenticateAsync({
         promptMessage,
         cancelLabel: 'Cancel',
-        fallbackLabel: 'Use Password',
+        fallbackLabel: 'Use Passcode',
         disableDeviceFallback: false,
       });
 

@@ -1,11 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
   Share,
-  Image,
 } from 'react-native';
 import { Text } from './ScaledText';
 import {
@@ -30,6 +29,11 @@ import { PressableScale } from './PressableScale';
 import { FadeInView } from './FadeInView';
 import { SwipeableNoteCard } from './SwipeableNoteCard';
 import { UnlockNoteModal } from './UnlockNoteModal';
+import { NoteMediaThumb } from './NoteMediaThumb';
+import { MediaViewerModal } from './MediaViewerModal';
+
+// Actions on a locked note that must wait for the user to unlock it first
+type ProtectedAction = 'open' | 'share' | 'delete' | 'media';
 
 interface NotesViewProps {
   theme: ThemeColors;
@@ -39,6 +43,8 @@ interface NotesViewProps {
   onTogglePin: (id: string) => void;
   onDeleteNote: (id: string, title: string) => void;
   onArchiveNote: (id: string) => void;
+  /** Bumped by the app whenever secure notes must lock again (screen change / app backgrounded) */
+  lockSignal: number;
 }
 
 export const NotesView: React.FC<NotesViewProps> = ({
@@ -49,10 +55,30 @@ export const NotesView: React.FC<NotesViewProps> = ({
   onTogglePin,
   onDeleteNote,
   onArchiveNote,
+  lockSignal,
 }) => {
   const [showArchived, setShowArchived] = useState(false);
   const [unlockedNoteIds, setUnlockedNoteIds] = useState<Record<string, boolean>>({});
-  const [lockedNoteToUnlock, setLockedNoteToUnlock] = useState<INote | null>(null);
+  const [pendingUnlock, setPendingUnlock] = useState<{
+    note: INote;
+    action: ProtectedAction;
+    mediaIndex?: number;
+  } | null>(null);
+  const [mediaViewer, setMediaViewer] = useState<{ media: string[]; index: number } | null>(null);
+  // Action unlocked by the user, run only after the unlock modal has fully closed:
+  // iOS can't present the next modal (e.g. delete confirmation) while one is dismissing
+  const actionAfterUnlock = useRef<(() => void) | null>(null);
+
+  // Re-lock everything immediately when asked to
+  useEffect(() => {
+    if (lockSignal === 0) return;
+    setUnlockedNoteIds({});
+    setPendingUnlock(null);
+    setMediaViewer(null);
+    actionAfterUnlock.current = null;
+  }, [lockSignal]);
+
+  const isNoteLocked = (note: INote) => Boolean(note.isLocked) && !unlockedNoteIds[note._id];
 
   // Defensive array checks
   const safeNotes = useMemo(
@@ -78,28 +104,51 @@ export const NotesView: React.FC<NotesViewProps> = ({
     [activeNotes]
   );
 
-  const handleCardPress = (note: INote) => {
-    if (note.isLocked && !unlockedNoteIds[note._id]) {
-      setLockedNoteToUnlock(note);
-    } else {
-      onOpenEdit(note);
+  const runAction = (note: INote, action: ProtectedAction, mediaIndex = 0) => {
+    switch (action) {
+      case 'open':
+        onOpenEdit(note);
+        break;
+      case 'share':
+        shareNote(note);
+        break;
+      case 'delete':
+        onDeleteNote(note._id, (note.title || '').trim() || 'Untitled Note');
+        break;
+      case 'media':
+        setMediaViewer({ media: note.media || [], index: mediaIndex });
+        break;
     }
   };
+
+  // Runs the action straight away, or asks to unlock first if the note is locked
+  const withUnlock = (note: INote, action: ProtectedAction, mediaIndex?: number) => {
+    if (isNoteLocked(note)) {
+      // Ignore repeat taps/swipes while an unlock prompt is already showing
+      if (pendingUnlock) return;
+      setPendingUnlock({ note, action, mediaIndex });
+    } else {
+      runAction(note, action, mediaIndex);
+    }
+  };
+
+  const handleCardPress = (note: INote) => withUnlock(note, 'open');
 
   const handleUnlockSuccess = () => {
-    if (lockedNoteToUnlock) {
-      const noteToOpen = lockedNoteToUnlock;
-      setUnlockedNoteIds((prev) => ({ ...prev, [noteToOpen._id]: true }));
-      setLockedNoteToUnlock(null);
-      onOpenEdit(noteToOpen);
-    }
+    if (!pendingUnlock) return;
+    const { note, action, mediaIndex } = pendingUnlock;
+    setUnlockedNoteIds((prev) => ({ ...prev, [note._id]: true }));
+    actionAfterUnlock.current = () => runAction(note, action, mediaIndex);
+    setPendingUnlock(null);
   };
 
-  const handleShare = async (note: INote) => {
-    if (note.isLocked && !unlockedNoteIds[note._id]) {
-      setLockedNoteToUnlock(note);
-      return;
-    }
+  const handleUnlockModalClosed = () => {
+    const action = actionAfterUnlock.current;
+    actionAfterUnlock.current = null;
+    action?.();
+  };
+
+  const shareNote = async (note: INote) => {
     try {
       const title = (note.title || '').trim();
       const content = (note.content || '').trim();
@@ -136,7 +185,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       const content = typeof note.content === 'string' ? note.content : '';
       const displayTitle = title.trim();
       const displayContent = content.trim();
-      const isLockedAndSecret = Boolean(note.isLocked) && !unlockedNoteIds[note._id];
+      const isLockedAndSecret = isNoteLocked(note);
       const hasMedia = Array.isArray(note.media) && note.media.length > 0;
 
       const firstLineContent = displayContent.split('\n')[0] || '';
@@ -145,7 +194,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
         <FadeInView key={note._id}>
           <SwipeableNoteCard
             theme={theme}
-            onDelete={() => onDeleteNote(note._id, displayTitle || 'Untitled Note')}
+            onDelete={() => withUnlock(note, 'delete')}
             onArchive={() => onArchiveNote(note._id)}
             isArchived={note.isArchived}
           >
@@ -236,14 +285,20 @@ export const NotesView: React.FC<NotesViewProps> = ({
                       {note.media!.slice(0, 3).map((uri, idx) => {
                         const isLastExtra = idx === 2 && note.media!.length > 3;
                         return (
-                          <View key={`${uri}_${idx}`} style={styles.cardMediaThumbWrap}>
-                            <Image source={{ uri }} style={styles.cardMediaThumb} resizeMode="cover" />
+                          <PressableScale
+                            key={`${uri}_${idx}`}
+                            onPress={() => withUnlock(note, 'media', idx)}
+                            activeScale={0.94}
+                            style={styles.cardMediaThumbWrap}
+                            accessibilityLabel="Open attachment"
+                          >
+                            <NoteMediaThumb uri={uri} style={styles.cardMediaThumb} />
                             {isLastExtra && (
                               <View style={styles.mediaExtraOverlay}>
                                 <Text style={styles.mediaExtraText}>+{note.media!.length - 2}</Text>
                               </View>
                             )}
-                          </View>
+                          </PressableScale>
                         );
                       })}
                     </View>
@@ -270,7 +325,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 <View style={styles.actionButtonsRow}>
                   {/* Share action */}
                   <TouchableOpacity
-                    onPress={() => handleShare(note)}
+                    onPress={() => withUnlock(note, 'share')}
                     style={styles.actionBtn}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel="Share note"
@@ -304,7 +359,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
                   {/* Delete action */}
                   <TouchableOpacity
-                    onPress={() => onDeleteNote(note._id, displayTitle || 'Untitled Note')}
+                    onPress={() => withUnlock(note, 'delete')}
                     style={styles.actionBtn}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel="Delete note"
@@ -469,10 +524,19 @@ export const NotesView: React.FC<NotesViewProps> = ({
       {/* Unlock Locked Note Modal */}
       <UnlockNoteModal
         theme={theme}
-        isOpen={Boolean(lockedNoteToUnlock)}
-        onClose={() => setLockedNoteToUnlock(null)}
+        isOpen={Boolean(pendingUnlock)}
+        onClose={() => setPendingUnlock(null)}
         onSuccess={handleUnlockSuccess}
-        noteTitle={lockedNoteToUnlock?.title}
+        onClosed={handleUnlockModalClosed}
+        noteTitle={pendingUnlock?.note.title}
+      />
+
+      {/* Full-screen attachment viewer */}
+      <MediaViewerModal
+        isOpen={Boolean(mediaViewer)}
+        media={mediaViewer?.media ?? []}
+        initialIndex={mediaViewer?.index ?? 0}
+        onClose={() => setMediaViewer(null)}
       />
     </View>
   );
@@ -681,8 +745,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardMediaThumb: {
-    width: '100%',
-    height: '100%',
+    width: 60,
+    height: 60,
   },
   mediaExtraOverlay: {
     position: 'absolute',

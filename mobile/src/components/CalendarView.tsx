@@ -6,6 +6,8 @@ import {
   ChevronRight,
   Plus,
   RefreshCw,
+  CheckSquare,
+  Clock,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { IEvent, ITask, TaskStatus } from '../types/index';
@@ -297,16 +299,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       {cell.dayNumber}
                     </Text>
 
-                    {/* Event & Task Dots */}
-                    <View style={styles.dotsRow}>
-                      {cellEvents.slice(0, 2).map((evt) => (
-                        <View
-                          key={evt._id}
-                          style={[styles.eventDot, { backgroundColor: evt.color || theme.accent }]}
-                        />
-                      ))}
+                    {/* Task & Event counts (only when present) */}
+                    <View style={styles.countsCol}>
                       {cellTasks.length > 0 && (
-                        <View style={[styles.taskDot, { backgroundColor: theme.textSecondary }]} />
+                        <View style={[styles.countPill, { backgroundColor: `${theme.inProgressBlue}26` }]}>
+                          <CheckSquare size={9} color={theme.inProgressBlue} strokeWidth={2.6} />
+                          <Text style={[styles.countText, { color: theme.inProgressBlue }]}>
+                            {cellTasks.length}
+                          </Text>
+                        </View>
+                      )}
+                      {cellEvents.length > 0 && (
+                        <View style={[styles.countPill, { backgroundColor: `${theme.accent}26` }]}>
+                          <Clock size={9} color={theme.accent} strokeWidth={2.6} />
+                          <Text style={[styles.countText, { color: theme.accent }]}>
+                            {cellEvents.length}
+                          </Text>
+                        </View>
                       )}
                     </View>
                   </TouchableOpacity>
@@ -453,19 +462,21 @@ const styles = StyleSheet.create({
   cellDayNumber: {
     fontSize: 13,
   },
-  dotsRow: {
-    flexDirection: 'row',
+  countsCol: {
     gap: 2,
+    alignItems: 'flex-start',
+  },
+  countPill: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 999,
   },
-  eventDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-  },
-  taskDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+  countText: {
+    fontSize: 9,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
 });

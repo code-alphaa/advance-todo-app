@@ -1,17 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  Animated,
-  Easing,
-} from 'react-native';
+import { View, Pressable, StyleSheet, Animated, Easing } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './ScaledText';
-import { Bell, X } from 'lucide-react-native';
+import { Bell } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 
-const AUTO_DISMISS_MS = 4000;
+const AUTO_DISMISS_MS = 3000;
+const HIDDEN_OFFSET = -60;
 
 interface InAppNotificationBannerProps {
   theme: ThemeColors;
@@ -19,14 +15,16 @@ interface InAppNotificationBannerProps {
   onDismiss: () => void;
 }
 
+// Compact pill toast that drops in just below the status bar; tap to dismiss
 export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = ({
   theme,
   banner,
   onDismiss,
 }) => {
-  const translateY = useRef(new Animated.Value(-120)).current;
+  const insets = useSafeAreaInsets();
+  const translateY = useRef(new Animated.Value(HIDDEN_OFFSET)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const progressAnim = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDismiss = () => {
@@ -36,14 +34,14 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
     }
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: -120,
-        duration: 250,
+        toValue: HIDDEN_OFFSET,
+        duration: 220,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 220,
+        duration: 180,
         useNativeDriver: true,
       }),
     ]).start(() => {
@@ -53,38 +51,31 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
 
   useEffect(() => {
     if (banner) {
-      // Reset animations
-      translateY.setValue(-120);
+      translateY.setValue(HIDDEN_OFFSET);
       opacity.setValue(0);
-      progressAnim.setValue(1);
+      scale.setValue(0.9);
 
-      // Slide in
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
+          damping: 18,
+          stiffness: 220,
           useNativeDriver: true,
-          bounciness: 6,
-          speed: 16,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          damping: 14,
+          stiffness: 220,
+          useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 200,
+          duration: 160,
           useNativeDriver: true,
         }),
       ]).start();
 
-      // Countdown timer bar
-      Animated.timing(progressAnim, {
-        toValue: 0,
-        duration: AUTO_DISMISS_MS,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }).start();
-
-      // Auto vanish timer
-      dismissTimerRef.current = setTimeout(() => {
-        handleDismiss();
-      }, AUTO_DISMISS_MS);
+      dismissTimerRef.current = setTimeout(handleDismiss, AUTO_DISMISS_MS);
 
       return () => {
         if (dismissTimerRef.current) {
@@ -98,55 +89,34 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
   if (!banner) return null;
 
   return (
-    <View style={styles.wrapper} pointerEvents="box-none">
+    <View style={[styles.wrapper, { top: insets.top + 4 }]} pointerEvents="box-none">
       <Animated.View
         style={[
-          styles.container,
-          {
-            backgroundColor: theme.bgCard,
-            borderColor: theme.accent,
-            shadowColor: '#000',
-            opacity,
-            transform: [{ translateY }],
-          },
+          styles.shadow,
+          { shadowColor: '#000', opacity, transform: [{ translateY }, { scale }] },
         ]}
       >
-        <TouchableOpacity
+        <Pressable
           onPress={handleDismiss}
-          style={styles.innerRow}
-          activeOpacity={0.9}
+          style={[styles.pill, { backgroundColor: theme.glassBg, borderColor: theme.glassBorder }]}
+          accessibilityRole="alert"
+          accessibilityHint="Tap to dismiss"
         >
-          <View style={[styles.bellBox, { backgroundColor: theme.accent }]}>
-            <Bell size={16} color={theme.textOnAccent} />
-          </View>
-
-          <View style={styles.contentCol}>
-            <Text style={[styles.title, { color: theme.textMain }]}>{banner.title}</Text>
-            <Text style={[styles.message, { color: theme.textSecondary }]} numberOfLines={2}>
-              {banner.message}
-            </Text>
-          </View>
-
-          <TouchableOpacity onPress={handleDismiss} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <X size={15} color={theme.textMuted} />
-          </TouchableOpacity>
-        </TouchableOpacity>
-
-        {/* Animated Auto-Vanish Progress Line */}
-        <View style={[styles.progressTrack, { backgroundColor: theme.accentSubtle }]}>
-          <Animated.View
-            style={[
-              styles.progressBar,
-              {
-                backgroundColor: theme.accent,
-                width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
+          <BlurView
+            intensity={theme.isDark ? 50 : 70}
+            tint={theme.isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
           />
-        </View>
+          <View style={[styles.iconDot, { backgroundColor: theme.accent }]}>
+            <Bell size={10} color={theme.textOnAccent} strokeWidth={2.6} />
+          </View>
+          <Text style={[styles.text, { color: theme.textMain }]} numberOfLines={1}>
+            <Text style={styles.title}>{banner.title}</Text>
+            {banner.message ? (
+              <Text style={{ color: theme.textSecondary }}>{`  ${banner.message}`}</Text>
+            ) : null}
+          </Text>
+        </Pressable>
       </Animated.View>
     </View>
   );
@@ -155,54 +125,42 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 54 : 32,
-    left: 16,
-    right: 16,
+    left: 24,
+    right: 24,
+    alignItems: 'center',
     zIndex: 999,
   },
-  container: {
-    borderRadius: 16,
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
+  shadow: {
+    maxWidth: '100%',
+    borderRadius: 999,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  innerRow: {
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    gap: 10,
+    gap: 7,
+    paddingLeft: 6,
+    paddingRight: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
   },
-  bellBox: {
-    width: 32,
-    height: 32,
+  iconDot: {
+    width: 20,
+    height: 20,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  contentCol: {
-    flex: 1,
-    gap: 2,
+  text: {
+    flexShrink: 1,
+    fontSize: 11.5,
   },
   title: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  message: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  closeBtn: {
-    padding: 4,
-  },
-  progressTrack: {
-    height: 3,
-    width: '100%',
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
+    fontWeight: '700',
   },
 });

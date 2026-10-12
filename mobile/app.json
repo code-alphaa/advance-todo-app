@@ -54,6 +54,21 @@
             "image": "./assets/splash-icon.png"
           }
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID to unlock your locked notes."
+        }
+      ],
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to attach photos and videos to your notes.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to take photos for your notes.",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to record audio with videos for your notes."
+        }
       ]
     ]
   }
