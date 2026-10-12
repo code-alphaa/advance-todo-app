@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ITask, IEvent, AppNotification, MetaStats, TaskStatus } from '../types';
+import { ITask, IEvent, INote, AppNotification, MetaStats, TaskStatus } from '../types';
 import { formatDateToYYYYMMDD } from '../utils/dateUtils';
 import { getTaskReminderTimes, countPassedTimes } from '../utils/reminderTimes';
 
@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
   NOTIFICATIONS: '@tt_notifications',
   THEME: '@tt_theme',
   FONT_SCALE: '@tt_font_scale',
+  NOTES: '@tt_quick_notes',
+  NOTES_PASSWORD: '@tt_notes_custom_password',
 };
 
 // Sequence Counter for TODO-1, TODO-2, etc.
@@ -313,6 +315,152 @@ export const offlineStorage = {
       await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifs));
     } catch (e) {
       console.error('Failed to save notifications:', e);
+    }
+  },
+
+  // QUICK NOTES (Timeless, general notes)
+  async getNotes(search?: string): Promise<INote[]> {
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.NOTES);
+      let notes: INote[] = raw ? JSON.parse(raw) : [];
+
+      if (search && search.trim()) {
+        const q = search.trim().toLowerCase();
+        notes = notes.filter(
+          (n) =>
+            (n.title && n.title.toLowerCase().includes(q)) ||
+            (n.content && n.content.toLowerCase().includes(q))
+        );
+      }
+
+      // Sort: pinned first, then newest updated
+      return notes.sort((a, b) => {
+        if (a.isPinned !== b.isPinned) {
+          return a.isPinned ? -1 : 1;
+        }
+        return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+      });
+    } catch (e) {
+      console.error('Failed to get notes:', e);
+      return [];
+    }
+  },
+
+  async createNote(data: Partial<INote>): Promise<INote> {
+    try {
+      const notes = await this.getNotes();
+      const now = new Date().toISOString();
+      const newNote: INote = {
+        _id: `note_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        title: (data.title || '').trim(),
+        content: (data.content || '').trim(),
+        color: data.color || 'default',
+        isPinned: Boolean(data.isPinned),
+        isArchived: Boolean(data.isArchived) || false,
+        isLocked: Boolean(data.isLocked) || false,
+        media: data.media || [],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const updated = [newNote, ...notes];
+      await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(updated));
+      return newNote;
+    } catch (e) {
+      console.error('Failed to create note:', e);
+      throw e;
+    }
+  },
+
+  async updateNote(id: string, updates: Partial<INote>): Promise<INote> {
+    try {
+      const notes = await this.getNotes();
+      const index = notes.findIndex((n) => n._id === id);
+      if (index === -1) throw new Error('Note not found');
+
+      const existing = notes[index];
+      const updatedNote: INote = {
+        ...existing,
+        ...updates,
+        title: updates.title !== undefined ? updates.title.trim() : existing.title,
+        content: updates.content !== undefined ? updates.content.trim() : existing.content,
+        media: updates.media !== undefined ? updates.media : existing.media || [],
+        updatedAt: new Date().toISOString(),
+      };
+
+      notes[index] = updatedNote;
+      await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
+      return updatedNote;
+    } catch (e) {
+      console.error('Failed to update note:', e);
+      throw e;
+    }
+  },
+
+  async deleteNote(id: string): Promise<boolean> {
+    try {
+      let notes = await this.getNotes();
+      notes = notes.filter((n) => n._id !== id);
+      await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
+      return true;
+    } catch (e) {
+      console.error('Failed to delete note:', e);
+      return false;
+    }
+  },
+
+  async togglePinNote(id: string): Promise<INote> {
+    const notes = await this.getNotes();
+    const note = notes.find((n) => n._id === id);
+    if (!note) throw new Error('Note not found');
+
+    return await this.updateNote(id, { isPinned: !note.isPinned });
+  },
+
+  async toggleArchiveNote(id: string): Promise<INote> {
+    const notes = await this.getNotes();
+    const note = notes.find((n) => n._id === id);
+    if (!note) throw new Error('Note not found');
+
+    const nextArchived = !note.isArchived;
+    const updates: Partial<INote> = {
+      isArchived: nextArchived,
+      ...(nextArchived ? { isPinned: false } : {}),
+    };
+    return await this.updateNote(id, updates);
+  },
+
+  async toggleLockNote(id: string): Promise<INote> {
+    const notes = await this.getNotes();
+    const note = notes.find((n) => n._id === id);
+    if (!note) throw new Error('Note not found');
+
+    return await this.updateNote(id, { isLocked: !note.isLocked });
+  },
+
+  async getNotesCustomPassword(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(STORAGE_KEYS.NOTES_PASSWORD);
+    } catch {
+      return null;
+    }
+  },
+
+  async setNotesCustomPassword(password: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.NOTES_PASSWORD, password.trim());
+    } catch (e) {
+      console.error('Failed to set notes password:', e);
+    }
+  },
+
+  async verifyNotesCustomPassword(password: string): Promise<boolean> {
+    try {
+      const saved = await AsyncStorage.getItem(STORAGE_KEYS.NOTES_PASSWORD);
+      if (!saved) return false;
+      return saved === password.trim();
+    } catch {
+      return false;
     }
   },
 

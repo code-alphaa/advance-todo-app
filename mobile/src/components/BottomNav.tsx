@@ -3,13 +3,20 @@ import { View, StyleSheet, Platform, Animated, LayoutChangeEvent } from 'react-n
 import { BlurView } from 'expo-blur';
 import { Text } from './ScaledText';
 import { PressableScale } from './PressableScale';
-import { Calendar as DayIcon, CalendarDays, Calendar as CalIcon } from 'lucide-react-native';
+import {
+  Calendar as DayIcon,
+  CalendarDays,
+  Calendar as CalIcon,
+  StickyNote,
+} from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
+
+export type AppViewType = 'day' | 'weekly' | 'calendar' | 'notes';
 
 interface BottomNavProps {
   theme: ThemeColors;
-  currentView: 'day' | 'weekly' | 'calendar';
-  onViewChange: (view: 'day' | 'weekly' | 'calendar') => void;
+  currentView: AppViewType;
+  onViewChange: (view: AppViewType) => void;
 }
 
 type TabLayout = { x: number; width: number };
@@ -23,6 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     { id: 'day', label: 'Today', icon: DayIcon },
     { id: 'weekly', label: '7 Days', icon: CalendarDays },
     { id: 'calendar', label: 'Calendar', icon: CalIcon },
+    { id: 'notes', label: 'Notes', icon: StickyNote },
   ] as const;
 
   const [layouts, setLayouts] = useState<Record<string, TabLayout>>({});
@@ -57,66 +65,66 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   return (
     <View style={styles.wrapper} pointerEvents="box-none">
       <View style={[styles.shadow, { shadowColor: '#000' }]}>
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: theme.glassBg,
-            borderColor: theme.glassBorder,
-          },
-        ]}
-      >
-        {/* Frosted glass surface */}
-        <BlurView
-          intensity={theme.isDark ? 50 : 70}
-          tint={theme.isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
-
-        {layouts[currentView] && (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.indicator,
-              { backgroundColor: theme.accent, left: indicatorX, width: indicatorWidth },
-            ]}
+        <View
+          style={[
+            styles.container,
+            {
+              backgroundColor: theme.glassBg,
+              borderColor: theme.glassBorder,
+            },
+          ]}
+        >
+          {/* Frosted glass surface */}
+          <BlurView
+            intensity={theme.isDark ? 50 : 70}
+            tint={theme.isDark ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
           />
-        )}
 
-        {tabs.map((tab) => {
-          const isSelected = currentView === tab.id;
-          const Icon = tab.icon;
+          {layouts[currentView] && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.indicator,
+                { backgroundColor: theme.accent, left: indicatorX, width: indicatorWidth },
+              ]}
+            />
+          )}
 
-          return (
-            <PressableScale
-              key={tab.id}
-              onPress={() => onViewChange(tab.id)}
-              onLayout={handleTabLayout(tab.id)}
-              style={styles.tabButton}
-              activeScale={0.9}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isSelected }}
-            >
-              <Icon
-                size={18}
-                strokeWidth={isSelected ? 2.4 : 2}
-                color={isSelected ? theme.textOnAccent : theme.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.tabLabel,
-                  {
-                    color: isSelected ? theme.textOnAccent : theme.textSecondary,
-                    fontWeight: isSelected ? '700' : '500',
-                  },
-                ]}
+          {tabs.map((tab) => {
+            const isSelected = currentView === tab.id;
+            const Icon = tab.icon;
+
+            return (
+              <PressableScale
+                key={tab.id}
+                onPress={() => onViewChange(tab.id)}
+                onLayout={handleTabLayout(tab.id)}
+                style={styles.tabButton}
+                activeScale={0.9}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
               >
-                {tab.label}
-              </Text>
-            </PressableScale>
-          );
-        })}
-      </View>
+                <Icon
+                  size={17}
+                  strokeWidth={isSelected ? 2.4 : 2}
+                  color={isSelected ? theme.textOnAccent : theme.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    {
+                      color: isSelected ? theme.textOnAccent : theme.textSecondary,
+                      fontWeight: isSelected ? '700' : '500',
+                    },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </PressableScale>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -141,7 +149,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 6,
+    padding: 5,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
@@ -149,21 +157,21 @@ const styles = StyleSheet.create({
   },
   indicator: {
     position: 'absolute',
-    top: 6,
-    bottom: 6,
+    top: 5,
+    bottom: 5,
     borderRadius: 999,
   },
   tabButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 76,
+    minWidth: 62,
     paddingVertical: 7,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderRadius: 999,
     gap: 2,
   },
   tabLabel: {
-    fontSize: 10.5,
+    fontSize: 10,
     letterSpacing: 0.1,
   },
 });

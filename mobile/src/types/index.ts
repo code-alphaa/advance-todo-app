@@ -58,6 +58,21 @@ export interface IEvent {
   createdAt: string;
 }
 
+export type NoteColorId = 'default' | 'amber' | 'emerald' | 'cyan' | 'purple' | 'rose';
+
+export interface INote {
+  _id: string;
+  title: string;
+  content: string;
+  color?: NoteColorId;
+  isPinned: boolean;
+  isArchived?: boolean;
+  isLocked?: boolean;
+  media?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppNotification {
   id: string;
   title: string;

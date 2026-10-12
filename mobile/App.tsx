@@ -6,22 +6,21 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { darkTheme, lightTheme, ThemeColors } from './src/theme/colors';
-import {
-  FontScaleProvider,
-  DEFAULT_FONT_SCALE,
-  normalizeFontScale,
-  stepFontScale,
-} from './src/theme/fontScale';
+import { FontScaleProvider, DEFAULT_FONT_SCALE, stepFontScale, normalizeFontScale } from './src/theme/fontScale';
 import { offlineStorage } from './src/services/storage';
-import { requestNotificationPermission, playNotificationAlert } from './src/services/notifications';
 import {
   ITask,
   IEvent,
+  INote,
   AppNotification,
+  DayInfo,
   MetaStats,
   TaskStatus,
-  DayInfo,
 } from './src/types';
+import {
+  requestNotificationPermission,
+  playNotificationAlert,
+} from './src/services/notifications';
 import {
   formatDateToYYYYMMDD,
   getWeekDates,
@@ -32,16 +31,18 @@ import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTime
 import { animateNextLayout } from './src/utils/layoutAnimation';
 
 import { WeekNavigator } from './src/components/WeekNavigator';
-import { BottomNav } from './src/components/BottomNav';
+import { BottomNav, AppViewType } from './src/components/BottomNav';
 import { FloatingAddButton } from './src/components/FloatingAddButton';
 import { useTabTransition } from './src/hooks/useTabTransition';
 import { syncCalendarIfDue, startCalendarAutoSync, CALENDAR_SYNC_INTERVAL_MINUTES } from './src/services/calendarAutoSync';
 import { SingleDayView } from './src/components/SingleDayView';
 import { WeeklyBoardView } from './src/components/WeeklyBoardView';
 import { CalendarView } from './src/components/CalendarView';
+import { NotesView } from './src/components/NotesView';
 import { CreateTaskModal } from './src/components/CreateTaskModal';
 import { CreateEventModal } from './src/components/CreateEventModal';
 import { TaskDetailModal } from './src/components/TaskDetailModal';
+import { NoteModal } from './src/components/NoteModal';
 import { ConfirmModal } from './src/components/ConfirmModal';
 import { InAppNotificationBanner } from './src/components/InAppNotificationBanner';
 import { AnimatedSplash } from './src/components/AnimatedSplash';
@@ -76,7 +77,7 @@ export default function App() {
 
   // Active week & view
   const [currentWeekReference, setCurrentWeekReference] = useState<Date>(new Date());
-  const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'calendar'>('day');
+  const [currentView, setCurrentView] = useState<AppViewType>('day');
   const [selectedDayDate, setSelectedDayDate] = useState<string>(todayDateStr);
   // Bumped to tell the calendar view to animate back to today's month
   const [calendarJumpSignal, setCalendarJumpSignal] = useState(0);
@@ -84,6 +85,7 @@ export default function App() {
   // Data states
   const [tasks, setTasks] = useState<ITask[]>([]);
   const [events, setEvents] = useState<IEvent[]>([]);
+  const [notes, setNotes] = useState<INote[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [stats, setStats] = useState<MetaStats>({
     total: 0,
@@ -105,9 +107,14 @@ export default function App() {
 
   const [selectedTask, setSelectedTask] = useState<ITask | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<INote | null>(null);
+  const [isEditNoteOpen, setIsEditNoteOpen] = useState(false);
+
   const [confirmDelete, setConfirmDelete] = useState<{
     id: string;
-    type: 'task' | 'event';
+    type: 'task' | 'event' | 'note';
     title: string;
   } | null>(null);
 
@@ -185,18 +192,20 @@ export default function App() {
     await offlineStorage.saveFontScale(next);
   };
 
-  // Load tasks, events, and stats from local storage
+  // Load tasks, events, stats, and notes from local storage
   const loadData = useCallback(async () => {
     try {
-      const [fetchedTasks, fetchedEvents, fetchedStats] = await Promise.all([
+      const [fetchedTasks, fetchedEvents, fetchedStats, fetchedNotes] = await Promise.all([
         offlineStorage.getTasks({ weekStart, weekEnd }),
         offlineStorage.getEvents(),
         offlineStorage.getStats(weekStart, weekEnd),
+        offlineStorage.getNotes(),
       ]);
 
       setTasks(fetchedTasks);
       setEvents(fetchedEvents);
       setStats(fetchedStats);
+      setNotes(fetchedNotes);
     } catch (e) {
       console.error('Error loading offline data:', e);
     } finally {
@@ -238,121 +247,135 @@ export default function App() {
         try {
           const [hours, minutes] = evt.startTime.split(':').map(Number);
           const [y, m, d] = evt.eventDate.split('-').map(Number);
-          const eventTime = new Date(y, m - 1, d, hours, minutes);
-          const eventTimeMs = eventTime.getTime();
+          const evtTime = new Date(y, m - 1, d, hours, minutes).getTime();
+          const remindAt = evtTime - (evt.reminderMinutes ?? 15) * 60 * 1000;
 
-          const reminderOffsetMs = (evt.reminderMinutes || 0) * 60 * 1000;
-          const triggerTimeMs = eventTimeMs - reminderOffsetMs;
+          if (nowMs >= remindAt && nowMs < evtTime + 60 * 60 * 1000) {
+            await playNotificationAlert(
+              `Upcoming Event: ${evt.title}`,
+              `Starts at ${evt.startTime}${evt.location ? ` @ ${evt.location}` : ''}`
+            );
 
-          if (nowMs >= triggerTimeMs && nowMs <= eventTimeMs + 60 * 60 * 1000) {
             await offlineStorage.markEventNotified(evt._id);
-
             setEvents((prev) =>
               prev.map((e) => (e._id === evt._id ? { ...e, isNotified: true } : e))
             );
 
-            const diffMins = Math.round((eventTimeMs - nowMs) / 60000);
-            const timingText =
-              diffMins > 1
-                ? `starts in ${diffMins} minutes (${evt.startTime})`
-                : diffMins <= 0
-                ? `is starting now!`
-                : `starts in 1 minute!`;
-
-            // Display in-app banner
-            const bannerTitle = `Reminder: ${evt.title}`;
-            const bannerMessage = `Event ${timingText} on ${evt.eventDate}${evt.location ? ` at ${evt.location}` : ''}.`;
-            setActiveBanner({ title: bannerTitle, message: bannerMessage });
-            playNotificationAlert(bannerTitle, bannerMessage);
-
-            // Save to notifications
             const newNotif: AppNotification = {
-              id: `${evt._id}-${Date.now()}`,
-              title: `Reminder: ${evt.title}`,
-              message: `Event ${timingText} on ${evt.eventDate}`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              id: `notif_${Date.now()}`,
+              title: `Upcoming Event: ${evt.title}`,
+              message: `Starts at ${evt.startTime}`,
+              timestamp: new Date().toISOString(),
               eventId: evt._id,
               read: false,
             };
+            setNotifications((prev) => [newNotif, ...prev]);
+            await offlineStorage.saveNotifications([newNotif, ...notifications]);
 
-            const updatedNotifs = [newNotif, ...notifications];
-            setNotifications(updatedNotifs);
-            await offlineStorage.saveNotifications(updatedNotifs);
+            setActiveBanner({
+              title: newNotif.title,
+              message: newNotif.message,
+            });
           }
         } catch (e) {
           console.error('Error evaluating event reminder:', e);
         }
       }
 
-      // Check Task Daily Reminders
-      for (const t of tasks) {
-        if (!t.remindersPerDay || t.remindersPerDay <= 0) continue;
-        if (t.status === 'DONE') continue;
-        if (t.assignedDate > todayDateStr) continue;
+      // Check task reminders
+      for (const task of tasks) {
+        if (task.status === 'DONE') continue;
+        if (task.assignedDate !== todayDateStr) continue;
 
-        try {
-          const isNewDay = t.lastReminderDate !== todayDateStr;
-          const sentToday = isNewDay ? 0 : (t.remindersSentToday || 0);
+        const maxReminders = task.remindersPerDay ?? 0;
+        if (maxReminders <= 0) continue;
 
-          // Fire once when one or more of today's reminder times has been reached;
-          // slots missed while the app was closed collapse into a single reminder
-          const dueCount = countPassedTimes(getTaskReminderTimes(t), now);
+        const sentToday =
+          task.lastReminderDate === todayDateStr ? (task.remindersSentToday ?? 0) : 0;
+        if (sentToday >= maxReminders) continue;
 
-          if (dueCount > sentToday) {
-            const newSent = dueCount;
-            const nowIso = now.toISOString();
+        const times = getTaskReminderTimes(task);
+        const [curH, curM] = [now.getHours(), now.getMinutes()];
+        const curMinutes = curH * 60 + curM;
 
-            await offlineStorage.updateTask(t._id, {
-              remindersSentToday: newSent,
-              lastReminderDate: todayDateStr,
-              lastReminderTimestamp: nowIso,
-            });
-
-            setTasks((prev) =>
-              prev.map((item) =>
-                item._id === t._id
-                  ? {
-                      ...item,
-                      remindersSentToday: newSent,
-                      lastReminderDate: todayDateStr,
-                      lastReminderTimestamp: nowIso,
-                    }
-                  : item
-              )
-            );
-
-            // Display in-app banner
-            const bannerTitle = `Task Reminder: [${t.key}]`;
-            const bannerMessage = `${t.title} • Daily reminder (${newSent}/${t.remindersPerDay}).`;
-            setActiveBanner({ title: bannerTitle, message: bannerMessage });
-            playNotificationAlert(bannerTitle, bannerMessage);
-
-            // Save to notifications
-            const newNotif: AppNotification = {
-              id: `${t._id}-${Date.now()}`,
-              title: `Task Reminder: ${t.key}`,
-              message: `[${t.title}] - Daily reminder (${newSent}/${t.remindersPerDay}). Status: ${t.status.replace('_', ' ')}.`,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              taskId: t._id,
-              read: false,
-            };
-
-            const updatedNotifs = [newNotif, ...notifications];
-            setNotifications(updatedNotifs);
-            await offlineStorage.saveNotifications(updatedNotifs);
+        let shouldNotify = false;
+        if (times.length > 0) {
+          for (let i = sentToday; i < times.length; i++) {
+            const [th, tm] = times[i].split(':').map(Number);
+            if (curMinutes >= th * 60 + tm) {
+              shouldNotify = true;
+              break;
+            }
           }
-        } catch (e) {
-          console.error('Error evaluating task reminder:', e);
+        } else {
+          // Legacy evenly-spaced schedule fallback
+          const windowStartHour = 9;
+          const windowHours = 9;
+          const intervalMinutes = (windowHours * 60) / maxReminders;
+          const targetMinutes = windowStartHour * 60 + sentToday * intervalMinutes;
+          if (curMinutes >= targetMinutes) {
+            shouldNotify = true;
+          }
+        }
+
+        if (shouldNotify) {
+          await playNotificationAlert(
+            `Task Reminder: ${task.title}`,
+            `Status: ${task.status} | Priority: ${task.priority}`
+          );
+
+          const updatedTask: ITask = {
+            ...task,
+            remindersSentToday: sentToday + 1,
+            lastReminderDate: todayDateStr,
+            lastReminderTimestamp: now.toISOString(),
+          };
+
+          await offlineStorage.updateTask(task._id, updatedTask);
+          setTasks((prev) => prev.map((t) => (t._id === task._id ? updatedTask : t)));
+
+          const newNotif: AppNotification = {
+            id: `notif_${Date.now()}`,
+            title: `Task Reminder: ${task.title}`,
+            message: `Don't forget to work on this task today!`,
+            timestamp: now.toISOString(),
+            taskId: task._id,
+            read: false,
+          };
+          setNotifications((prev) => [newNotif, ...prev]);
+          await offlineStorage.saveNotifications([newNotif, ...notifications]);
+
+          setActiveBanner({
+            title: newNotif.title,
+            message: newNotif.message,
+          });
         }
       }
     };
 
     const interval = setInterval(checkReminders, 10000);
-    checkReminders();
     return () => clearInterval(interval);
-  }, [events, tasks, notifications, todayDateStr]);
+  }, [events, tasks, todayDateStr, notifications]);
 
-  // Navigate Weeks
+  // Daily Rollover Engine
+  const handleTriggerRollover = async () => {
+    setIsRollingOver(true);
+    try {
+      const { rolledOverCount } = await offlineStorage.triggerRollover(todayDateStr);
+      await loadData();
+      if (rolledOverCount > 0) {
+        setActiveBanner({
+          title: 'Rollover Complete',
+          message: `${rolledOverCount} incomplete tasks rolled over to today!`,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to trigger rollover:', e);
+    } finally {
+      setIsRollingOver(false);
+    }
+  };
+
   const handlePrevWeek = () => {
     const prev = new Date(currentWeekReference);
     prev.setDate(prev.getDate() - 7);
@@ -371,10 +394,12 @@ export default function App() {
     setCalendarJumpSignal((n) => n + 1);
   };
 
-  // Switching tabs always snaps the view back to today's date/week
-  const handleViewChange = (view: 'day' | 'weekly' | 'calendar') => {
+  // Switching tabs always snaps the view back to today's date/week (when applicable)
+  const handleViewChange = (view: AppViewType) => {
     setCurrentView(view);
-    handleJumpToToday();
+    if (view !== 'notes') {
+      handleJumpToToday();
+    }
   };
 
   // Status Change
@@ -485,27 +510,82 @@ export default function App() {
     }
   };
 
-  // Rollover trigger
-  const handleTriggerRollover = async () => {
-    setIsRollingOver(true);
+  // Quick Notes Operations
+  const handleCreateNote = async (data: Partial<INote>) => {
     try {
-      const res = await offlineStorage.triggerRollover(todayDateStr);
-      await loadData();
-      if (res.rolledOverCount > 0) {
-        setActiveBanner({
-          title: 'Rollover Completed',
-          message: `${res.rolledOverCount} unfinished task(s) rolled over to today!`,
-        });
-      } else {
-        setActiveBanner({
-          title: 'All Caught Up',
-          message: 'All tasks are completed or already scheduled for today.',
-        });
+      const newNote = await offlineStorage.createNote(data);
+      animateNextLayout();
+      setNotes((prev) => [newNote, ...prev]);
+      setActiveBanner({
+        title: 'Note Created',
+        message: newNote.title ? `"${newNote.title}" saved` : 'Quick note saved',
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateNote = async (id: string, updates: Partial<INote>) => {
+    try {
+      const updated = await offlineStorage.updateNote(id, updates);
+      animateNextLayout();
+      setNotes((prev) =>
+        prev.map((n) => (n._id === id ? updated : n))
+      );
+      if (selectedNote?._id === id) {
+        setSelectedNote(updated);
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setIsRollingOver(false);
+      loadData();
+    }
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    try {
+      await offlineStorage.deleteNote(id);
+      animateNextLayout();
+      setNotes((prev) => prev.filter((n) => n._id !== id));
+      setActiveBanner({
+        title: 'Note Deleted',
+        message: 'Quick note removed',
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleArchiveNote = async (id: string) => {
+    try {
+      const updated = await offlineStorage.toggleArchiveNote(id);
+      animateNextLayout();
+      setNotes((prev) =>
+        prev.map((n) => (n._id === id ? updated : n))
+      );
+      setActiveBanner({
+        title: updated.isArchived ? 'Note Archived' : 'Note Restored',
+        message: updated.isArchived
+          ? 'Note moved to archive'
+          : 'Note restored to active notes',
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleTogglePinNote = async (id: string) => {
+    try {
+      const updated = await offlineStorage.togglePinNote(id);
+      animateNextLayout();
+      setNotes((prev) => {
+        const next = prev.map((n) => (n._id === id ? updated : n));
+        return next.sort((a, b) => {
+          if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+          return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+        });
+      });
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -528,8 +608,8 @@ export default function App() {
               onDismiss={() => setActiveBanner(null)}
             />
 
-            {/* Week Navigator for non-day views */}
-            {currentView !== 'day' && (
+            {/* Week Navigator for non-day and non-notes views */}
+            {currentView !== 'day' && currentView !== 'notes' && (
               <WeekNavigator
                 theme={theme}
                 weekDays={weekDays}
@@ -596,7 +676,7 @@ export default function App() {
                     setIsCreateTaskOpen(true);
                   }}
                 />
-              ) : (
+              ) : currentView === 'calendar' ? (
                 <CalendarView
                   theme={theme}
                   events={events}
@@ -618,6 +698,21 @@ export default function App() {
                   onRefreshEvents={loadData}
                   jumpToTodaySignal={calendarJumpSignal}
                 />
+              ) : (
+                <NotesView
+                  theme={theme}
+                  notes={notes}
+                  onOpenCreate={() => setIsCreateNoteOpen(true)}
+                  onOpenEdit={(note) => {
+                    setSelectedNote(note);
+                    setIsEditNoteOpen(true);
+                  }}
+                  onTogglePin={handleTogglePinNote}
+                  onDeleteNote={(id, title) => {
+                    setConfirmDelete({ id, type: 'note', title });
+                  }}
+                  onArchiveNote={handleArchiveNote}
+                />
               )}
             </Animated.View>
 
@@ -628,12 +723,16 @@ export default function App() {
               onViewChange={handleViewChange}
             />
 
-            {/* Floating Add Task Button */}
+            {/* Floating Add Task / Note Button */}
             <FloatingAddButton
               theme={theme}
               onPress={() => {
-                setCreateTaskDate(selectedDayDate || todayDateStr);
-                setIsCreateTaskOpen(true);
+                if (currentView === 'notes') {
+                  setIsCreateNoteOpen(true);
+                } else {
+                  setCreateTaskDate(selectedDayDate || todayDateStr);
+                  setIsCreateTaskOpen(true);
+                }
               }}
             />
 
@@ -669,10 +768,45 @@ export default function App() {
               weekDays={weekDays}
             />
 
+            <NoteModal
+              theme={theme}
+              isOpen={isCreateNoteOpen}
+              onClose={() => setIsCreateNoteOpen(false)}
+              onSubmit={handleCreateNote}
+            />
+
+            <NoteModal
+              theme={theme}
+              isOpen={isEditNoteOpen}
+              onClose={() => {
+                setIsEditNoteOpen(false);
+                setSelectedNote(null);
+              }}
+              onSubmit={(updates) => {
+                if (selectedNote) {
+                  handleUpdateNote(selectedNote._id, updates);
+                }
+              }}
+              onDelete={(id) => {
+                setConfirmDelete({
+                  id,
+                  type: 'note',
+                  title: selectedNote?.title || 'note',
+                });
+              }}
+              note={selectedNote}
+            />
+
             <ConfirmModal
               theme={theme}
               isOpen={Boolean(confirmDelete)}
-              title={confirmDelete?.type === 'task' ? 'Delete Task' : 'Delete Event'}
+              title={
+                confirmDelete?.type === 'task'
+                  ? 'Delete Task'
+                  : confirmDelete?.type === 'event'
+                  ? 'Delete Event'
+                  : 'Delete Note'
+              }
               message={`Are you sure you want to delete "${confirmDelete?.title}"?`}
               confirmText="Delete"
               cancelText="Cancel"
@@ -683,8 +817,12 @@ export default function App() {
                     handleDeleteTask(confirmDelete.id);
                     setIsDetailOpen(false);
                     setSelectedTask(null);
-                  } else {
+                  } else if (confirmDelete.type === 'event') {
                     handleDeleteEvent(confirmDelete.id);
+                  } else if (confirmDelete.type === 'note') {
+                    handleDeleteNote(confirmDelete.id);
+                    setIsEditNoteOpen(false);
+                    setSelectedNote(null);
                   }
                   setConfirmDelete(null);
                 }
@@ -700,7 +838,7 @@ export default function App() {
   );
 }
 
-const VIEW_ORDER = ['day', 'weekly', 'calendar'] as const;
+const VIEW_ORDER = ['day', 'weekly', 'calendar', 'notes'] as const;
 
 const styles = StyleSheet.create({
   safeArea: {
