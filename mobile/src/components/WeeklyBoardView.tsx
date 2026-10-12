@@ -10,6 +10,7 @@ import { Calendar, Clock, AlertCircle } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { ITask, IEvent, DayInfo, TaskStatus } from '../types';
 import { TaskCard } from './TaskCard';
+import { FadeInView } from './FadeInView';
 
 interface WeeklyBoardViewProps {
   theme: ThemeColors;
@@ -137,15 +138,16 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
               )}
 
               {/* Tasks List */}
-              {dayTasks.map((task) => (
-                <TaskCard
-                  key={task._id}
-                  theme={theme}
-                  task={task}
-                  onOpenDetails={onOpenDetails}
-                  onStatusChange={onStatusChange}
-                  onMoveTask={onMoveTask}
-                />
+              {dayTasks.map((task, index) => (
+                <FadeInView key={task._id} index={index}>
+                  <TaskCard
+                    theme={theme}
+                    task={task}
+                    onOpenDetails={onOpenDetails}
+                    onStatusChange={onStatusChange}
+                    onMoveTask={onMoveTask}
+                  />
+                </FadeInView>
               ))}
 
               {dayTasks.length === 0 && (
@@ -172,13 +174,14 @@ const styles = StyleSheet.create({
   },
   column: {
     width: COLUMN_WIDTH,
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: 26,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   columnHeader: {
-    padding: 12,
-    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -189,8 +192,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   columnTitle: {
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: '800',
+    letterSpacing: -0.4,
   },
   dateSubRow: {
     flexDirection: 'row',
@@ -206,7 +210,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   todayBadge: {
-    borderRadius: 6,
+    borderRadius: 999,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
@@ -216,7 +220,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   countPill: {
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -241,9 +245,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
   eventPillText: {
     color: '#FFF',
@@ -252,7 +256,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   emptyColBox: {
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
     borderStyle: 'dashed',
     paddingVertical: 32,

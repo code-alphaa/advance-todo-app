@@ -21,6 +21,9 @@ export interface ThemeColors {
   mediumYellow: string;
   lowBlue: string;
   modalBackdrop: string;
+  glassBg: string;       // Translucent fill layered over blurred surfaces
+  glassBorder: string;   // Hairline edge highlight for glass surfaces
+  cardShadow: string;    // Soft drop shadow tint for elevated cards
 }
 
 export const darkTheme: ThemeColors = {
@@ -49,6 +52,9 @@ export const darkTheme: ThemeColors = {
   mediumYellow: '#FFD400',
   lowBlue: '#06B6D4',
   modalBackdrop: 'transparent',
+  glassBg: 'rgba(28, 28, 28, 0.55)',
+  glassBorder: 'rgba(255, 255, 255, 0.12)',
+  cardShadow: '#000000',
 };
 
 export const lightTheme: ThemeColors = {
@@ -76,4 +82,7 @@ export const lightTheme: ThemeColors = {
   mediumYellow: '#D99847',   // Aged Gouda
   lowBlue: '#06B6D4',
   modalBackdrop: 'transparent',
+  glassBg: 'rgba(255, 255, 255, 0.55)',
+  glassBorder: 'rgba(255, 255, 255, 0.7)',
+  cardShadow: '#8E4F22',
 };

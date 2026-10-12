@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { DayInfo } from '../types';
+import { PressableScale } from './PressableScale';
 
 interface WeekNavigatorProps {
   theme: ThemeColors;
@@ -39,32 +40,34 @@ export const WeekNavigator: React.FC<WeekNavigatorProps> = ({
   return (
     <View style={[styles.outerContainer, { backgroundColor: theme.bgApp }]}>
       <View style={[styles.innerPill, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
-        <TouchableOpacity
+        <PressableScale
           onPress={onPrevWeek}
-          style={styles.arrowButton}
-          activeOpacity={0.6}
+          style={[styles.arrowButton, { backgroundColor: theme.bgApp }]}
+          activeScale={0.85}
+          accessibilityLabel="Previous week"
         >
-          <ChevronLeft size={16} color={theme.textMuted} />
-        </TouchableOpacity>
+          <ChevronLeft size={16} color={theme.textSecondary} />
+        </PressableScale>
 
         <Text style={[styles.rangeText, { color: theme.textMain }]}>{weekRangeDisplay}</Text>
 
-        <TouchableOpacity
+        <PressableScale
           onPress={onJumpToToday}
-          style={[styles.todayButton, { backgroundColor: theme.columnHeader, borderColor: theme.border }]}
-          activeOpacity={0.7}
+          style={[styles.todayButton, { backgroundColor: theme.accentSubtle }]}
+          activeScale={0.9}
         >
           <Text style={[styles.todayButtonText, { color: theme.textMain }]}>TODAY</Text>
           <Text style={[styles.todayDateText, { color: theme.textSecondary }]}>{todayFormatted}</Text>
-        </TouchableOpacity>
+        </PressableScale>
 
-        <TouchableOpacity
+        <PressableScale
           onPress={onNextWeek}
-          style={styles.arrowButton}
-          activeOpacity={0.6}
+          style={[styles.arrowButton, { backgroundColor: theme.bgApp }]}
+          activeScale={0.85}
+          accessibilityLabel="Next week"
         >
-          <ChevronRight size={16} color={theme.textMuted} />
-        </TouchableOpacity>
+          <ChevronRight size={16} color={theme.textSecondary} />
+        </PressableScale>
       </View>
     </View>
   );
@@ -80,26 +83,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
     width: '100%',
     maxWidth: 375,
   },
   arrowButton: {
-    padding: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rangeText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
+    letterSpacing: -0.2,
     fontVariant: ['tabular-nums'],
   },
   todayButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 10,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },

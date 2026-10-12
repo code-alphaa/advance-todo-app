@@ -46,10 +46,12 @@ export const CenterModal: React.FC<CenterModalProps> = ({
     if (isOpen) {
       setIsMounted(true);
       animProgress.setValue(0);
-      Animated.timing(animProgress, {
+      // Springy, slightly overshooting entrance like iOS sheets
+      Animated.spring(animProgress, {
         toValue: 1,
-        duration: 230,
-        easing: Easing.bezier(0.16, 1, 0.3, 1), // Apple-style smooth deceleration
+        damping: 20,
+        stiffness: 240,
+        mass: 0.9,
         useNativeDriver: true,
       }).start();
     } else if (isMounted) {
@@ -67,6 +69,12 @@ export const CenterModal: React.FC<CenterModalProps> = ({
   }, [isOpen]);
 
   if (!isMounted) return null;
+
+  const fade = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   const handleBackdropPress = (e: GestureResponderEvent) => {
     if (!dismissOnBackdrop) return;
@@ -95,7 +103,7 @@ export const CenterModal: React.FC<CenterModalProps> = ({
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
-          { opacity: animProgress },
+          { opacity: fade },
         ]}
         pointerEvents="none"
       >
@@ -124,12 +132,19 @@ export const CenterModal: React.FC<CenterModalProps> = ({
             borderColor: theme.border,
             maxWidth,
             maxHeight,
-            opacity: animProgress,
+            shadowColor: theme.cardShadow,
+            opacity: fade,
             transform: [
+              {
+                translateY: animProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [28, 0],
+                }),
+              },
               {
                 scale: animProgress.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0.88, 1],
+                  outputRange: [0.92, 1],
                 }),
               },
             ],
@@ -164,13 +179,12 @@ const styles = StyleSheet.create({
   },
   dialog: {
     width: '100%',
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 16 },
     elevation: 12,
   },
 });

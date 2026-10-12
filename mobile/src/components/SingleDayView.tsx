@@ -20,6 +20,8 @@ import { ITask, IEvent, DayInfo, TaskStatus } from '../types';
 import { TaskCard } from './TaskCard';
 import { SwipeToDelete } from './SwipeToDelete';
 import { useTabTransition } from '../hooks/useTabTransition';
+import { PressableScale } from './PressableScale';
+import { FadeInView } from './FadeInView';
 
 interface SingleDayViewProps {
   theme: ThemeColors;
@@ -155,9 +157,10 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
             const count = tasks.filter((t) => t.assignedDate === day.dateString).length;
 
             return (
-              <TouchableOpacity
+              <PressableScale
                 key={day.dateString}
                 onPress={() => onSelectDate(day.dateString)}
+                activeScale={0.9}
                 onLayout={(e) => {
                   chipLayouts.current[day.dateString] = e.nativeEvent.layout;
                   if (day.dateString === selectedDate) scrollToSelected();
@@ -167,9 +170,9 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
                   {
                     backgroundColor: isSelected ? theme.accent : theme.bgCard,
                     borderColor: isSelected ? theme.accent : theme.border,
+                    shadowColor: isSelected ? theme.accent : 'transparent',
                   },
                 ]}
-                activeOpacity={0.7}
               >
                 <Text
                   style={[
@@ -215,7 +218,7 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
                     </Text>
                   </View>
                 )}
-              </TouchableOpacity>
+              </PressableScale>
             );
           })}
         </ScrollView>
@@ -273,9 +276,10 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
               const activeCountBg = isLightTab ? 'rgba(0, 0, 0, 0.18)' : 'rgba(255, 255, 255, 0.25)';
 
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={tab}
                   onPress={() => setStatusFilter(tab)}
+                  activeScale={0.92}
                   style={[
                     styles.filterTabPill,
                     {
@@ -283,7 +287,6 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
                       borderColor: isTabActive ? color : theme.border,
                     },
                   ]}
-                  activeOpacity={0.7}
                 >
                   <Text
                     style={[
@@ -317,7 +320,7 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
                       {count}
                     </Text>
                   </View>
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </ScrollView>
@@ -368,16 +371,18 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
 
         {/* Tasks List */}
         <Animated.View style={[styles.tasksList, listTransitionStyle]}>
-          {filteredTasks.map((task) => (
-            <SwipeToDelete key={task._id} theme={theme} onDelete={() => onDeleteTask(task)}>
-              <TaskCard
-                theme={theme}
-                task={task}
-                onOpenDetails={onOpenDetails}
-                onStatusChange={onStatusChange}
-                onMoveTask={onMoveTask}
-              />
-            </SwipeToDelete>
+          {filteredTasks.map((task, index) => (
+            <FadeInView key={task._id} index={index}>
+              <SwipeToDelete theme={theme} onDelete={() => onDeleteTask(task)}>
+                <TaskCard
+                  theme={theme}
+                  task={task}
+                  onOpenDetails={onOpenDetails}
+                  onStatusChange={onStatusChange}
+                  onMoveTask={onMoveTask}
+                />
+              </SwipeToDelete>
+            </FadeInView>
           ))}
 
           {filteredTasks.length === 0 && (
@@ -421,10 +426,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   dayChip: {
-    width: 48,
-    height: 60,
-    borderRadius: 14,
-    borderWidth: 1,
+    width: 50,
+    height: 64,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 1,
@@ -454,10 +462,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   dayHeaderCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     gap: 10,
   },
   dayHeaderRow: {
@@ -469,8 +477,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayHeading: {
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: '800',
+    letterSpacing: -0.4,
   },
   daySubheading: {
     fontSize: 11,
@@ -487,10 +496,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4.5,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   filterTabText: {
     fontSize: 11,
@@ -505,8 +514,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   eventsBox: {
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: 10,
     gap: 6,
   },
@@ -529,7 +538,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   eventItem: {
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 8,
     gap: 2,
   },
@@ -572,11 +581,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   tasksList: {
-    gap: 4,
+    gap: 0,
   },
   emptyBox: {
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 32,
     paddingHorizontal: 16,
     alignItems: 'center',

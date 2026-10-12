@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform, Animated, LayoutChangeEvent } from 'react-native';
+import { View, StyleSheet, Platform, Animated, LayoutChangeEvent } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Text } from './ScaledText';
+import { PressableScale } from './PressableScale';
 import { Calendar as DayIcon, CalendarDays, Calendar as CalIcon } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 
@@ -54,16 +56,23 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   return (
     <View style={styles.wrapper} pointerEvents="box-none">
+      <View style={[styles.shadow, { shadowColor: '#000' }]}>
       <View
         style={[
           styles.container,
           {
-            backgroundColor: theme.bgCard,
-            borderColor: theme.border,
-            shadowColor: '#000',
+            backgroundColor: theme.glassBg,
+            borderColor: theme.glassBorder,
           },
         ]}
       >
+        {/* Frosted glass surface */}
+        <BlurView
+          intensity={theme.isDark ? 50 : 70}
+          tint={theme.isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
+
         {layouts[currentView] && (
           <Animated.View
             pointerEvents="none"
@@ -79,15 +88,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           const Icon = tab.icon;
 
           return (
-            <TouchableOpacity
+            <PressableScale
               key={tab.id}
               onPress={() => onViewChange(tab.id)}
               onLayout={handleTabLayout(tab.id)}
               style={styles.tabButton}
-              activeOpacity={0.7}
+              activeScale={0.9}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSelected }}
             >
               <Icon
-                size={14}
+                size={18}
+                strokeWidth={isSelected ? 2.4 : 2}
                 color={isSelected ? theme.textOnAccent : theme.textSecondary}
               />
               <Text
@@ -101,9 +113,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               >
                 {tab.label}
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
           );
         })}
+      </View>
       </View>
     </View>
   );
@@ -118,34 +131,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 50,
   },
+  shadow: {
+    borderRadius: 999,
+    elevation: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    padding: 6,
     borderRadius: 999,
-    borderWidth: 1,
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    gap: 2,
   },
   indicator: {
     position: 'absolute',
-    top: 5,
-    bottom: 5,
+    top: 6,
+    bottom: 6,
     borderRadius: 999,
   },
   tabButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    minWidth: 76,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     borderRadius: 999,
-    gap: 6,
+    gap: 2,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 10.5,
+    letterSpacing: 0.1,
   },
 });

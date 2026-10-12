@@ -88,14 +88,14 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    bottom: 8, // matches TaskCard's marginBottom
+    bottom: 10, // matches TaskCard's marginBottom
 
     flexDirection: 'row',
     alignItems: 'stretch',
   },
   deleteButton: {
     width: ACTION_WIDTH - 8,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,

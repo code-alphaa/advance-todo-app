@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { StyleSheet, View, ActivityIndicator, useColorScheme, Appearance, Animated, AppState } from 'react-native';
 import { Text } from './src/components/ScaledText';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { darkTheme, lightTheme, ThemeColors } from './src/theme/colors';
@@ -28,6 +29,7 @@ import {
   addDaysToDateStr,
 } from './src/utils/dateUtils';
 import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTimes';
+import { animateNextLayout } from './src/utils/layoutAnimation';
 
 import { WeekNavigator } from './src/components/WeekNavigator';
 import { BottomNav } from './src/components/BottomNav';
@@ -42,6 +44,10 @@ import { CreateEventModal } from './src/components/CreateEventModal';
 import { TaskDetailModal } from './src/components/TaskDetailModal';
 import { ConfirmModal } from './src/components/ConfirmModal';
 import { InAppNotificationBanner } from './src/components/InAppNotificationBanner';
+import { AnimatedSplash } from './src/components/AnimatedSplash';
+
+// Keep the native splash up until the animated splash is ready to take over
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {
   // Device appearance detection & theme state
@@ -373,6 +379,7 @@ export default function App() {
 
   // Status Change
   const handleStatusChange = async (id: string, newStatus: TaskStatus) => {
+    animateNextLayout();
     setTasks((prev) =>
       prev.map((t) => (t._id === id ? { ...t, status: newStatus } : t))
     );
@@ -390,6 +397,7 @@ export default function App() {
   const handleCreateTask = async (data: Partial<ITask>) => {
     try {
       const newTask = await offlineStorage.createTask(data);
+      animateNextLayout();
       setTasks((prev) => [...prev, newTask]);
       const updatedStats = await offlineStorage.getStats(weekStart, weekEnd);
       setStats(updatedStats);
@@ -405,6 +413,7 @@ export default function App() {
     const baseDate = task.assignedDate || todayDateStr;
     const newDate = addDaysToDateStr(baseDate, shiftDays);
 
+    animateNextLayout();
     setTasks((prev) =>
       prev.map((t) => (t._id === id ? { ...t, assignedDate: newDate } : t))
     );
@@ -445,6 +454,7 @@ export default function App() {
   const handleDeleteTask = async (id: string) => {
     try {
       await offlineStorage.deleteTask(id);
+      animateNextLayout();
       setTasks((prev) => prev.filter((t) => t._id !== id));
       const updatedStats = await offlineStorage.getStats(weekStart, weekEnd);
       setStats(updatedStats);
@@ -457,6 +467,7 @@ export default function App() {
   const handleCreateEvent = async (data: Partial<IEvent>) => {
     try {
       const newEvt = await offlineStorage.createEvent(data);
+      animateNextLayout();
       setEvents((prev) => [...prev, newEvt]);
     } catch (e) {
       console.error(e);
@@ -467,6 +478,7 @@ export default function App() {
   const handleDeleteEvent = async (id: string) => {
     try {
       await offlineStorage.deleteEvent(id);
+      animateNextLayout();
       setEvents((prev) => prev.filter((e) => e._id !== id));
     } catch (e) {
       console.error(e);
@@ -501,187 +513,189 @@ export default function App() {
 
   const viewTransitionStyle = useTabTransition(VIEW_ORDER.indexOf(currentView));
 
-  // Avoid flashing the default theme/text size before the saved ones are restored
-  if (!themeLoaded) return null;
-
   return (
     <SafeAreaProvider>
-      <FontScaleProvider scale={fontScale}>
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bgApp }]} edges={['top', 'left', 'right']}>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
+      {/* Avoid flashing the default theme/text size before the saved ones are restored */}
+      {themeLoaded && (
+        <FontScaleProvider scale={fontScale}>
+          <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bgApp }]} edges={['top', 'left', 'right']}>
+            <StatusBar style={isDark ? 'light' : 'dark'} />
 
-          {/* In-App Notification Alert Banner */}
-          <InAppNotificationBanner
-            theme={theme}
-            banner={activeBanner}
-            onDismiss={() => setActiveBanner(null)}
-          />
-
-          {/* Week Navigator for non-day views */}
-          {currentView !== 'day' && (
-            <WeekNavigator
+            {/* In-App Notification Alert Banner */}
+            <InAppNotificationBanner
               theme={theme}
-              weekDays={weekDays}
-              onPrevWeek={handlePrevWeek}
-              onNextWeek={handleNextWeek}
-              onJumpToToday={handleJumpToToday}
+              banner={activeBanner}
+              onDismiss={() => setActiveBanner(null)}
             />
-          )}
 
-          {/* Body Views */}
-          <Animated.View style={[styles.content, viewTransitionStyle]}>
-            {loading ? (
-              <View style={styles.loaderCenter}>
-                <ActivityIndicator size="large" color={theme.accent} />
-                <Text style={[styles.loadingText, { color: theme.textMuted }]}>
-                  Loading offline tasks & events...
-                </Text>
-              </View>
-            ) : currentView === 'day' ? (
-              <SingleDayView
+            {/* Week Navigator for non-day views */}
+            {currentView !== 'day' && (
+              <WeekNavigator
                 theme={theme}
-                days={weekDays}
-                selectedDate={selectedDayDate}
-                onSelectDate={setSelectedDayDate}
-                tasks={tasks}
-                events={events}
-                onOpenDetails={(t) => {
-                  setSelectedTask(t);
-                  setIsDetailOpen(true);
-                }}
-                onStatusChange={handleStatusChange}
-                onDeleteTask={(t) => setConfirmDelete({ id: t._id, type: 'task', title: t.title })}
-                onMoveTask={handleMoveTask}
-                onOpenAddEvent={(date) => {
-                  setCreateEventDate(date);
-                  setIsCreateEventOpen(true);
-                }}
-                headerContent={
-                  <View style={styles.scrollableHeader}>
-                    <WeekNavigator
-                      theme={theme}
-                      weekDays={weekDays}
-                      onPrevWeek={handlePrevWeek}
-                      onNextWeek={handleNextWeek}
-                      onJumpToToday={handleJumpToToday}
-                    />
-                  </View>
-                }
-              />
-            ) : currentView === 'weekly' ? (
-              <WeeklyBoardView
-                theme={theme}
-                days={weekDays}
-                tasks={tasks}
-                events={events}
-                onOpenDetails={(t) => {
-                  setSelectedTask(t);
-                  setIsDetailOpen(true);
-                }}
-                onStatusChange={handleStatusChange}
-                onMoveTask={handleMoveTask}
-                onOpenCreate={(date) => {
-                  setCreateTaskDate(date);
-                  setIsCreateTaskOpen(true);
-                }}
-              />
-            ) : (
-              <CalendarView
-                theme={theme}
-                events={events}
-                tasks={tasks}
-                todayDateStr={todayDateStr}
-                onAddEvent={(d) => {
-                  setCreateEventDate(d);
-                  setIsCreateEventOpen(true);
-                }}
-                onMoveTask={handleMoveTask}
-                onStatusChange={handleStatusChange}
-                onDeleteEvent={(id, title) => {
-                  setConfirmDelete({ id, type: 'event', title });
-                }}
-                onOpenTaskDetails={(t) => {
-                  setSelectedTask(t);
-                  setIsDetailOpen(true);
-                }}
-                onRefreshEvents={loadData}
-                jumpToTodaySignal={calendarJumpSignal}
+                weekDays={weekDays}
+                onPrevWeek={handlePrevWeek}
+                onNextWeek={handleNextWeek}
+                onJumpToToday={handleJumpToToday}
               />
             )}
-          </Animated.View>
 
-          {/* Floating Bottom Navigation */}
-          <BottomNav
-            theme={theme}
-            currentView={currentView}
-            onViewChange={handleViewChange}
-          />
+            {/* Body Views */}
+            <Animated.View style={[styles.content, viewTransitionStyle]}>
+              {loading ? (
+                <View style={styles.loaderCenter}>
+                  <ActivityIndicator size="large" color={theme.accent} />
+                  <Text style={[styles.loadingText, { color: theme.textMuted }]}>
+                    Loading offline tasks & events...
+                  </Text>
+                </View>
+              ) : currentView === 'day' ? (
+                <SingleDayView
+                  theme={theme}
+                  days={weekDays}
+                  selectedDate={selectedDayDate}
+                  onSelectDate={setSelectedDayDate}
+                  tasks={tasks}
+                  events={events}
+                  onOpenDetails={(t) => {
+                    setSelectedTask(t);
+                    setIsDetailOpen(true);
+                  }}
+                  onStatusChange={handleStatusChange}
+                  onDeleteTask={(t) => setConfirmDelete({ id: t._id, type: 'task', title: t.title })}
+                  onMoveTask={handleMoveTask}
+                  onOpenAddEvent={(date) => {
+                    setCreateEventDate(date);
+                    setIsCreateEventOpen(true);
+                  }}
+                  headerContent={
+                    <View style={styles.scrollableHeader}>
+                      <WeekNavigator
+                        theme={theme}
+                        weekDays={weekDays}
+                        onPrevWeek={handlePrevWeek}
+                        onNextWeek={handleNextWeek}
+                        onJumpToToday={handleJumpToToday}
+                      />
+                    </View>
+                  }
+                />
+              ) : currentView === 'weekly' ? (
+                <WeeklyBoardView
+                  theme={theme}
+                  days={weekDays}
+                  tasks={tasks}
+                  events={events}
+                  onOpenDetails={(t) => {
+                    setSelectedTask(t);
+                    setIsDetailOpen(true);
+                  }}
+                  onStatusChange={handleStatusChange}
+                  onMoveTask={handleMoveTask}
+                  onOpenCreate={(date) => {
+                    setCreateTaskDate(date);
+                    setIsCreateTaskOpen(true);
+                  }}
+                />
+              ) : (
+                <CalendarView
+                  theme={theme}
+                  events={events}
+                  tasks={tasks}
+                  todayDateStr={todayDateStr}
+                  onAddEvent={(d) => {
+                    setCreateEventDate(d);
+                    setIsCreateEventOpen(true);
+                  }}
+                  onMoveTask={handleMoveTask}
+                  onStatusChange={handleStatusChange}
+                  onDeleteEvent={(id, title) => {
+                    setConfirmDelete({ id, type: 'event', title });
+                  }}
+                  onOpenTaskDetails={(t) => {
+                    setSelectedTask(t);
+                    setIsDetailOpen(true);
+                  }}
+                  onRefreshEvents={loadData}
+                  jumpToTodaySignal={calendarJumpSignal}
+                />
+              )}
+            </Animated.View>
 
-          {/* Floating Add Task Button */}
-          <FloatingAddButton
-            theme={theme}
-            onPress={() => {
-              setCreateTaskDate(selectedDayDate || todayDateStr);
-              setIsCreateTaskOpen(true);
-            }}
-          />
+            {/* Floating Bottom Navigation */}
+            <BottomNav
+              theme={theme}
+              currentView={currentView}
+              onViewChange={handleViewChange}
+            />
 
-          {/* Modals */}
-          <CreateTaskModal
-            theme={theme}
-            isOpen={isCreateTaskOpen}
-            onClose={() => setIsCreateTaskOpen(false)}
-            onSubmit={handleCreateTask}
-            defaultDate={createTaskDate}
-          />
+            {/* Floating Add Task Button */}
+            <FloatingAddButton
+              theme={theme}
+              onPress={() => {
+                setCreateTaskDate(selectedDayDate || todayDateStr);
+                setIsCreateTaskOpen(true);
+              }}
+            />
 
-          <CreateEventModal
-            theme={theme}
-            isOpen={isCreateEventOpen}
-            onClose={() => setIsCreateEventOpen(false)}
-            onSubmit={handleCreateEvent}
-            initialDate={createEventDate}
-          />
+            {/* Modals */}
+            <CreateTaskModal
+              theme={theme}
+              isOpen={isCreateTaskOpen}
+              onClose={() => setIsCreateTaskOpen(false)}
+              onSubmit={handleCreateTask}
+              defaultDate={createTaskDate}
+            />
 
-          <TaskDetailModal
-            theme={theme}
-            task={selectedTask}
-            isOpen={isDetailOpen}
-            onClose={() => {
-              setIsDetailOpen(false);
-              setSelectedTask(null);
-            }}
-            onUpdate={handleUpdateTask}
-            onDelete={(id) => {
-              setConfirmDelete({ id, type: 'task', title: selectedTask?.title || 'task' });
-            }}
-            weekDays={weekDays}
-          />
+            <CreateEventModal
+              theme={theme}
+              isOpen={isCreateEventOpen}
+              onClose={() => setIsCreateEventOpen(false)}
+              onSubmit={handleCreateEvent}
+              initialDate={createEventDate}
+            />
 
-          <ConfirmModal
-            theme={theme}
-            isOpen={Boolean(confirmDelete)}
-            title={confirmDelete?.type === 'task' ? 'Delete Task' : 'Delete Event'}
-            message={`Are you sure you want to delete "${confirmDelete?.title}"?`}
-            confirmText="Delete"
-            cancelText="Cancel"
-            isDestructive={true}
-            onConfirm={() => {
-              if (confirmDelete) {
-                if (confirmDelete.type === 'task') {
-                  handleDeleteTask(confirmDelete.id);
-                  setIsDetailOpen(false);
-                  setSelectedTask(null);
-                } else {
-                  handleDeleteEvent(confirmDelete.id);
+            <TaskDetailModal
+              theme={theme}
+              task={selectedTask}
+              isOpen={isDetailOpen}
+              onClose={() => {
+                setIsDetailOpen(false);
+                setSelectedTask(null);
+              }}
+              onUpdate={handleUpdateTask}
+              onDelete={(id) => {
+                setConfirmDelete({ id, type: 'task', title: selectedTask?.title || 'task' });
+              }}
+              weekDays={weekDays}
+            />
+
+            <ConfirmModal
+              theme={theme}
+              isOpen={Boolean(confirmDelete)}
+              title={confirmDelete?.type === 'task' ? 'Delete Task' : 'Delete Event'}
+              message={`Are you sure you want to delete "${confirmDelete?.title}"?`}
+              confirmText="Delete"
+              cancelText="Cancel"
+              isDestructive={true}
+              onConfirm={() => {
+                if (confirmDelete) {
+                  if (confirmDelete.type === 'task') {
+                    handleDeleteTask(confirmDelete.id);
+                    setIsDetailOpen(false);
+                    setSelectedTask(null);
+                  } else {
+                    handleDeleteEvent(confirmDelete.id);
+                  }
+                  setConfirmDelete(null);
                 }
-                setConfirmDelete(null);
-              }
-            }}
-            onCancel={() => setConfirmDelete(null)}
-          />
-        </SafeAreaView>
-      </FontScaleProvider>
+              }}
+              onCancel={() => setConfirmDelete(null)}
+            />
+          </SafeAreaView>
+        </FontScaleProvider>
+      )}
+
+      <AnimatedSplash isAppReady={themeLoaded && !loading} />
     </SafeAreaProvider>
   );
 }
