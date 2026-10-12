@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Modal,
   View,
   TouchableOpacity,
-  Pressable,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { CenterModal } from './CenterModal';
 import { Text, TextInput } from './ScaledText';
@@ -92,173 +88,182 @@ export const CreateEventModal: React.FC<CreateEventModalProps> = ({
       maxWidth={460}
       maxHeight="86%"
     >
-          {/* Header */}
-          <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
-            <Text style={[styles.dialogTitle, { color: theme.textMain }]}>Add Calendar Event</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <X size={24} color={theme.textMain} strokeWidth={2.4} />
-            </TouchableOpacity>
+      {/* Header */}
+      <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
+        <Text style={[styles.dialogTitle, { color: theme.textMain }]}>Add Calendar Event</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <X size={24} color={theme.textMain} strokeWidth={2.4} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Form */}
+      <ScrollView
+        style={styles.dialogBody}
+        contentContainerStyle={styles.dialogBodyContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
+        bounces={true}
+      >
+        {/* Title with generous top padding */}
+        <View style={[styles.formGroup, { marginTop: 4 }]}>
+          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Event Title *</Text>
+          <TextInput
+            placeholder="e.g. Sprint Planning, 1-on-1 Sync..."
+            placeholderTextColor={theme.textMuted}
+            value={title}
+            onChangeText={setTitle}
+            style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+          />
+        </View>
+
+        {/* Date */}
+        <View style={styles.formGroup}>
+          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Date (YYYY-MM-DD)</Text>
+          <TextInput
+            value={eventDate}
+            onChangeText={setEventDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={theme.textMuted}
+            style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+          />
+        </View>
+
+        {/* Start & End Times */}
+        <View style={styles.rowTwoCols}>
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <View style={styles.labelRow}>
+              <Clock size={12} color={theme.accent} />
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Start Time</Text>
+            </View>
+            <TextInput
+              value={startTime}
+              onChangeText={setStartTime}
+              placeholder="HH:mm"
+              placeholderTextColor={theme.textMuted}
+              style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+            />
           </View>
 
-          {/* Form */}
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <View style={styles.labelRow}>
+              <Clock size={12} color={theme.textMuted} />
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>End Time</Text>
+            </View>
+            <TextInput
+              value={endTime}
+              onChangeText={setEndTime}
+              placeholder="HH:mm"
+              placeholderTextColor={theme.textMuted}
+              style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+            />
+          </View>
+        </View>
+
+        {/* Location */}
+        <View style={styles.formGroup}>
+          <View style={styles.labelRow}>
+            <MapPin size={12} color={theme.accent} />
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Location / Link (Optional)</Text>
+          </View>
+          <TextInput
+            value={location}
+            onChangeText={setLocation}
+            placeholder="e.g. Google Meet, Room 302..."
+            placeholderTextColor={theme.textMuted}
+            style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+          />
+        </View>
+
+        {/* Reminder */}
+        <View style={styles.formGroup}>
+          <View style={styles.labelRow}>
+            <Bell size={12} color={theme.accent} />
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Notification Reminder</Text>
+          </View>
           <ScrollView
-            style={styles.dialogBody}
-            contentContainerStyle={styles.dialogBodyContent}
-            showsVerticalScrollIndicator={false}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsRow}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
           >
-            {/* Title with generous top padding */}
-            <View style={[styles.formGroup, { marginTop: 4 }]}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Event Title *</Text>
-              <TextInput
-                placeholder="e.g. Sprint Planning, 1-on-1 Sync..."
-                placeholderTextColor={theme.textMuted}
-                value={title}
-                onChangeText={setTitle}
-                style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-              />
-            </View>
-
-            {/* Date */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Date (YYYY-MM-DD)</Text>
-              <TextInput
-                value={eventDate}
-                onChangeText={setEventDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={theme.textMuted}
-                style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-              />
-            </View>
-
-            {/* Start & End Times */}
-            <View style={styles.rowTwoCols}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <View style={styles.labelRow}>
-                  <Clock size={12} color={theme.accent} />
-                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Start Time</Text>
-                </View>
-                <TextInput
-                  value={startTime}
-                  onChangeText={setStartTime}
-                  placeholder="HH:mm"
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-                />
-              </View>
-
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <View style={styles.labelRow}>
-                  <Clock size={12} color={theme.textMuted} />
-                  <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>End Time</Text>
-                </View>
-                <TextInput
-                  value={endTime}
-                  onChangeText={setEndTime}
-                  placeholder="HH:mm"
-                  placeholderTextColor={theme.textMuted}
-                  style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-                />
-              </View>
-            </View>
-
-            {/* Location */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <MapPin size={12} color={theme.accent} />
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Location / Link (Optional)</Text>
-              </View>
-              <TextInput
-                value={location}
-                onChangeText={setLocation}
-                placeholder="e.g. Google Meet, Room 302..."
-                placeholderTextColor={theme.textMuted}
-                style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-              />
-            </View>
-
-            {/* Reminder */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Bell size={12} color={theme.accent} />
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Notification Reminder</Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-                {REMINDER_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    onPress={() => setReminderMinutes(opt.value)}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: reminderMinutes === opt.value ? theme.accent : theme.bgApp,
-                        borderColor: reminderMinutes === opt.value ? theme.accent : theme.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        {
-                          color: reminderMinutes === opt.value ? theme.textOnAccent : theme.textSecondary,
-                          fontWeight: reminderMinutes === opt.value ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Color Swatches */}
-            <View style={styles.formGroup}>
-              <View style={styles.labelRow}>
-                <Palette size={12} color={theme.accent} />
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Badge Color</Text>
-              </View>
-              <View style={styles.colorsRow}>
-                {COLOR_PRESETS.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    onPress={() => setColor(c)}
-                    style={[
-                      styles.colorSwatch,
-                      { backgroundColor: c },
-                      color === c && { borderWidth: 3, borderColor: theme.textMain },
-                    ]}
-                  />
-                ))}
-              </View>
-            </View>
+            {REMINDER_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => setReminderMinutes(opt.value)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: reminderMinutes === opt.value ? theme.accent : theme.bgApp,
+                    borderColor: reminderMinutes === opt.value ? theme.accent : theme.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    {
+                      color: reminderMinutes === opt.value ? theme.textOnAccent : theme.textSecondary,
+                      fontWeight: reminderMinutes === opt.value ? '700' : '500',
+                    },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
+        </View>
 
-          {/* Footer */}
-          <View style={[styles.dialogFooter, { borderTopColor: theme.border }]}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={[styles.cancelBtn, { borderColor: theme.border }]}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.cancelBtnText, { color: theme.textMuted }]}>Cancel</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={!title.trim()}
-              style={[
-                styles.saveBtn,
-                {
-                  backgroundColor: title.trim() ? theme.accent : theme.columnBg,
-                },
-              ]}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.saveBtnText, { color: title.trim() ? theme.textOnAccent : theme.textMuted }]}>
-                Schedule Event
-              </Text>
-            </TouchableOpacity>
+        {/* Color Swatches */}
+        <View style={styles.formGroup}>
+          <View style={styles.labelRow}>
+            <Palette size={12} color={theme.accent} />
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Badge Color</Text>
           </View>
+          <View style={styles.colorsRow}>
+            {COLOR_PRESETS.map((c) => (
+              <TouchableOpacity
+                key={c}
+                onPress={() => setColor(c)}
+                style={[
+                  styles.colorSwatch,
+                  { backgroundColor: c },
+                  color === c && { borderWidth: 3, borderColor: theme.textMain },
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Footer */}
+      <View style={[styles.dialogFooter, { borderTopColor: theme.border }]}>
+        <TouchableOpacity
+          onPress={onClose}
+          style={[styles.cancelBtn, { borderColor: theme.border }]}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.cancelBtnText, { color: theme.textMuted }]}>Cancel</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={!title.trim()}
+          style={[
+            styles.saveBtn,
+            {
+              backgroundColor: title.trim() ? theme.accent : theme.columnBg,
+            },
+          ]}
+          activeOpacity={0.8}
+        >
+          <Text style={[styles.saveBtnText, { color: title.trim() ? theme.textOnAccent : theme.textMuted }]}>
+            Schedule Event
+          </Text>
+        </TouchableOpacity>
+      </View>
     </CenterModal>
   );
 };
@@ -284,6 +289,7 @@ const styles = StyleSheet.create({
   },
   dialogBody: {
     flexGrow: 0,
+    flexShrink: 1,
   },
   dialogBodyContent: {
     padding: 16,
@@ -319,7 +325,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
   },
   chipText: {
@@ -328,39 +334,39 @@ const styles = StyleSheet.create({
   colorsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     paddingVertical: 4,
   },
   colorSwatch: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
   },
   dialogFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    padding: 14,
-    borderTopWidth: 1,
+    padding: 16,
     gap: 10,
+    borderTopWidth: 1,
   },
   cancelBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
   },
   cancelBtnText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   saveBtn: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   saveBtnText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

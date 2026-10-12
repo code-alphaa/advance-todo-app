@@ -38,7 +38,10 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-background-task",
+      "./plugins/withoutPushEntitlement",
+      "./plugins/withSceneDelegate"
     ]
   }
 }

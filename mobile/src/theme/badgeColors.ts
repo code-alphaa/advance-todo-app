@@ -16,18 +16,13 @@ export function getStatusBadgeStyle(status: TaskStatus, theme: ThemeColors, isSe
   switch (status) {
     case 'DONE':
       bg = theme.doneGreen;
-      text = '#FFFFFF';
+      text = theme.isDark ? theme.textOnAccent : '#FFFFFF';
       label = 'Done';
       break;
     case 'IN_PROGRESS':
       bg = theme.inProgressBlue;
       text = '#FFFFFF';
       label = 'In Progress';
-      break;
-    case 'IN_REVIEW':
-      bg = theme.reviewPurple;
-      text = '#FFFFFF';
-      label = 'In Review';
       break;
     case 'TODO':
     default:

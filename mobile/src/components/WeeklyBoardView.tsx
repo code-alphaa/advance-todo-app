@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -24,6 +24,7 @@ interface WeeklyBoardViewProps {
 
 const { width } = Dimensions.get('window');
 const COLUMN_WIDTH = width * 0.78;
+const SNAP_INTERVAL = COLUMN_WIDTH + 12;
 
 export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
   theme,
@@ -34,13 +35,28 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
   onStatusChange,
   onMoveTask,
 }) => {
+  const boardRef = useRef<ScrollView>(null);
+
+  // Whenever the week changes (tab switch / "TODAY" press), smoothly slide the
+  // board to today's column so the user lands on today's list.
+  const todayIndex = days.findIndex((d) => d.isToday);
+  useEffect(() => {
+    if (todayIndex < 0) return;
+    const x = todayIndex * SNAP_INTERVAL;
+    const timer = setTimeout(() => {
+      boardRef.current?.scrollTo({ x, animated: true });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [todayIndex, days]);
+
   return (
     <ScrollView
+      ref={boardRef}
       horizontal
       pagingEnabled={false}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.boardContainer}
-      snapToInterval={COLUMN_WIDTH + 12}
+      snapToInterval={SNAP_INTERVAL}
       decelerationRate="fast"
     >
       {days.map((day) => {
@@ -151,7 +167,7 @@ const styles = StyleSheet.create({
   boardContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 90,
+    paddingBottom: 170,
     gap: 12,
   },
   column: {

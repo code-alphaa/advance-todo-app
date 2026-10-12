@@ -136,7 +136,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 <span className="inline-flex items-center text-xs font-bold text-white bg-cyan-600 px-2 py-0.5 rounded">LOW</span>
               </MenuItem>
               <MenuItem value="MEDIUM">
-                <span className="inline-flex items-center text-xs font-bold text-[#131313] bg-[#EFD395] px-2 py-0.5 rounded">MEDIUM</span>
+                <span className="inline-flex items-center text-xs font-bold text-[var(--text-on-accent)] bg-[var(--accent-color)] px-2 py-0.5 rounded">MEDIUM</span>
               </MenuItem>
               <MenuItem value="HIGH">
                 <span className="inline-flex items-center text-xs font-bold text-white bg-orange-600 px-2 py-0.5 rounded">HIGH</span>

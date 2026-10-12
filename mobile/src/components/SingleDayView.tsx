@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { Text } from './ScaledText';
 import {
@@ -17,6 +19,7 @@ import { ThemeColors } from '../theme/colors';
 import { ITask, IEvent, DayInfo, TaskStatus } from '../types';
 import { TaskCard } from './TaskCard';
 import { SwipeToDelete } from './SwipeToDelete';
+import { useTabTransition } from '../hooks/useTabTransition';
 
 interface SingleDayViewProps {
   theme: ThemeColors;
@@ -63,9 +66,10 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
     'ALL',
     'TODO',
     'IN_PROGRESS',
-    'IN_REVIEW',
     'DONE',
   ];
+
+  const listTransitionStyle = useTabTransition(filterTabs.indexOf(statusFilter), 20);
 
   const getStatusCount = (status: 'ALL' | TaskStatus) => {
     if (status === 'ALL') return dayTasks.length;
@@ -78,8 +82,6 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
         return theme.doneGreen;
       case 'IN_PROGRESS':
         return theme.inProgressBlue;
-      case 'IN_REVIEW':
-        return theme.reviewPurple;
       case 'TODO':
         return theme.todoGray;
       default:
@@ -95,8 +97,6 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
         return 'To Do';
       case 'IN_PROGRESS':
         return 'In Progress';
-      case 'IN_REVIEW':
-        return 'Review';
       case 'DONE':
         return 'Done';
     }
@@ -105,6 +105,24 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
   const currentIndex = days.findIndex((d) => d.dateString === selectedDate);
   const prevDay = currentIndex > 0 ? days[currentIndex - 1] : null;
   const nextDay = currentIndex < days.length - 1 ? days[currentIndex + 1] : null;
+
+  // Keep the day ribbon scrolled to the selected day (e.g. today after a tab
+  // switch or a "TODAY" press).
+  const ribbonRef = useRef<ScrollView>(null);
+  const chipLayouts = useRef<Record<string, { x: number; width: number }>>({});
+  const windowWidth = Dimensions.get('window').width;
+
+  const scrollToSelected = () => {
+    const layout = chipLayouts.current[selectedDate];
+    if (!layout) return;
+    const x = Math.max(0, layout.x + layout.width / 2 - windowWidth / 2);
+    ribbonRef.current?.scrollTo({ x, animated: true });
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(scrollToSelected, 50);
+    return () => clearTimeout(timer);
+  }, [selectedDate, days]);
 
   return (
     <ScrollView
@@ -127,6 +145,7 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
         ]}
       >
         <ScrollView
+          ref={ribbonRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.ribbonContainer}
@@ -139,6 +158,10 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
               <TouchableOpacity
                 key={day.dateString}
                 onPress={() => onSelectDate(day.dateString)}
+                onLayout={(e) => {
+                  chipLayouts.current[day.dateString] = e.nativeEvent.layout;
+                  if (day.dateString === selectedDate) scrollToSelected();
+                }}
                 style={[
                   styles.dayChip,
                   {
@@ -344,7 +367,7 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
         )}
 
         {/* Tasks List */}
-        <View style={styles.tasksList}>
+        <Animated.View style={[styles.tasksList, listTransitionStyle]}>
           {filteredTasks.map((task) => (
             <SwipeToDelete key={task._id} theme={theme} onDelete={() => onDeleteTask(task)}>
               <TaskCard
@@ -362,12 +385,9 @@ export const SingleDayView: React.FC<SingleDayViewProps> = ({
               <Text style={[styles.emptyTitle, { color: theme.textMain }]}>
                 No tasks for {currentDay.name}
               </Text>
-              <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>
-                Tap the + button below to create a task
-              </Text>
             </View>
           )}
-        </View>
+        </Animated.View>
       </View>
     </ScrollView>
   );
@@ -379,7 +399,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingTop: 4,
-    paddingBottom: 90,
+    paddingBottom: 170,
   },
   headerSection: {
     gap: 2,
@@ -566,8 +586,5 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  emptySubtitle: {
-    fontSize: 11,
   },
 });

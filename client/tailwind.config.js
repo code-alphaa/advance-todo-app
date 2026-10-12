@@ -9,14 +9,16 @@ export default {
     extend: {
       colors: {
         palette: {
-          lightBg: '#FFFAF3',
-          lightSurface: '#FFF2DB',
-          lightBorder: '#FFE5BF',
-          lightAccent: '#F62440',
-          darkBg: '#131313',
-          darkSurface: '#262625',
-          darkBorder: '#4B4A48',
-          darkAccent: '#EFD395',
+          // Light: Pearl Oyster, Tawny Tan, Aged Gouda, Tree Sap, Plane Brown, Pot Black
+          lightBg: '#DDD5CC',
+          lightSurface: '#CDB398',
+          lightBorder: '#D99847',
+          lightAccent: '#D07915',
+          // Dark: Background #0D0D0D, Accent 1 #00FF85, Accent 2 #1E90FF, Hover #FF0099
+          darkBg: '#0D0D0D',
+          darkSurface: '#161616',
+          darkBorder: '#262626',
+          darkAccent: '#00FF85',
         },
       },
       fontFamily: {

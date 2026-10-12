@@ -103,7 +103,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         );
       case 'MEDIUM':
         return (
-          <span className="text-[10px] font-bold text-[#131313] bg-[#EFD395] px-2 py-0.5 rounded shadow-xs whitespace-nowrap">
+          <span className="text-[10px] font-bold text-[var(--text-on-accent)] bg-[var(--accent-color)] px-2 py-0.5 rounded shadow-xs whitespace-nowrap">
             MEDIUM
           </span>
         );

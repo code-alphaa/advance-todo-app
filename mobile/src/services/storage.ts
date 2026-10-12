@@ -39,6 +39,11 @@ export const offlineStorage = {
       const raw = await AsyncStorage.getItem(STORAGE_KEYS.TASKS);
       let tasks: ITask[] = raw ? JSON.parse(raw) : [];
 
+      // Legacy 'IN_REVIEW' status was removed; treat those tasks as in progress
+      tasks = tasks.map((t) =>
+        (t.status as string) === 'IN_REVIEW' ? { ...t, status: 'IN_PROGRESS' } : t
+      );
+
       if (filter?.assignedDate) {
         tasks = tasks.filter((t) => t.assignedDate === filter.assignedDate);
       }
@@ -279,7 +284,6 @@ export const offlineStorage = {
     const total = tasks.length;
     const done = tasks.filter((t) => t.status === 'DONE').length;
     const inProgress = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
-    const inReview = tasks.filter((t) => t.status === 'IN_REVIEW').length;
     const todo = tasks.filter((t) => t.status === 'TODO').length;
     const rolledOver = tasks.filter((t) => t.isRolledOver).length;
     const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -288,7 +292,6 @@ export const offlineStorage = {
       total,
       done,
       inProgress,
-      inReview,
       todo,
       rolledOver,
       completionRate,

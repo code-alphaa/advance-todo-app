@@ -34,7 +34,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const completedSubtasks = task.subtasks ? task.subtasks.filter((s) => s.completed).length : 0;
 
   const toggleStatus = () => {
-    const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
+    const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
     const nextIdx = (statuses.indexOf(task.status) + 1) % statuses.length;
     onStatusChange(task._id, statuses[nextIdx]);
   };
@@ -60,15 +60,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
           {/* Daily Reminders Count badge (without bell icon) */}
           {Boolean(task.remindersPerDay && task.remindersPerDay > 0 && !isDone) && (
-            <View style={[styles.reminderBadge, { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: 'rgba(59, 130, 246, 0.3)' }]}>
-              <Text style={[styles.reminderBadgeText, { color: '#3b82f6' }]}>
+            <View style={[styles.reminderBadge, { backgroundColor: `${theme.inProgressBlue}26`, borderColor: `${theme.inProgressBlue}4D` }]}>
+              <Text style={[styles.reminderBadgeText, { color: theme.inProgressBlue }]}>
                 {task.remindersPerDay}/day
               </Text>
             </View>
           )}
 
           {task.isRolledOver && (
-            <View style={[styles.rolloverBadge, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
+            <View style={[styles.rolloverBadge, { backgroundColor: `${theme.urgentRed}26` }]}>
               <RotateCw size={10} color={theme.urgentRed} />
               <Text style={[styles.rolloverText, { color: theme.urgentRed }]}>
                 Rolled {task.rolloverCount > 1 ? `x${task.rolloverCount}` : ''}

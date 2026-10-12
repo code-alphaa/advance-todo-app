@@ -10,6 +10,7 @@ import {
   StyleProp,
   DimensionValue,
   Easing,
+  GestureResponderEvent,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { ThemeColors } from '../theme/colors';
@@ -39,6 +40,7 @@ export const CenterModal: React.FC<CenterModalProps> = ({
 }) => {
   const [isMounted, setIsMounted] = useState(isOpen);
   const animProgress = useRef(new Animated.Value(isOpen ? 1 : 0)).current;
+  const dialogLayoutRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,6 +68,24 @@ export const CenterModal: React.FC<CenterModalProps> = ({
 
   if (!isMounted) return null;
 
+  const handleBackdropPress = (e: GestureResponderEvent) => {
+    if (!dismissOnBackdrop) return;
+    const { locationX, locationY } = e.nativeEvent;
+    const layout = dialogLayoutRef.current;
+    if (layout) {
+      const isInside =
+        locationX >= layout.x &&
+        locationX <= layout.x + layout.width &&
+        locationY >= layout.y &&
+        locationY <= layout.y + layout.height;
+      if (isInside) {
+        // Tapped inside the modal dialog bounds, do not dismiss
+        return;
+      }
+    }
+    onClose();
+  };
+
   const content = (
     <KeyboardAvoidingView
       behavior={avoidKeyboard && Platform.OS === 'ios' ? 'padding' : undefined}
@@ -89,12 +109,14 @@ export const CenterModal: React.FC<CenterModalProps> = ({
       {/* Tap-outside dismiss overlay */}
       <Pressable
         style={StyleSheet.absoluteFill}
-        onPress={dismissOnBackdrop ? onClose : undefined}
+        onPress={handleBackdropPress}
       />
 
       {/* Centered Dialog with Zoom-in & Smooth Fade In/Out */}
       <Animated.View
-        onStartShouldSetResponder={() => true}
+        onLayout={(e) => {
+          dialogLayoutRef.current = e.nativeEvent.layout;
+        }}
         style={[
           styles.dialog,
           {

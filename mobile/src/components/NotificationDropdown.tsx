@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
   useWindowDimensions,
+  GestureResponderEvent,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -103,9 +104,22 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const scaleX = progress.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] });
   const opacity = progress.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] });
 
+  const handleBackdropPress = (e: GestureResponderEvent) => {
+    const { locationX, locationY } = e.nativeEvent;
+    const isInside =
+      locationX >= panelLeft &&
+      locationX <= panelLeft + panelWidth &&
+      locationY >= panelTop &&
+      locationY <= panelTop + panelMaxHeight;
+    if (isInside) {
+      return;
+    }
+    onClose();
+  };
+
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress}>
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
           <BlurView
             intensity={theme.isDark ? 30 : 40}
@@ -170,6 +184,9 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
             style={styles.body}
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            bounces={true}
           >
             {notifications.map((notif) => (
               <View

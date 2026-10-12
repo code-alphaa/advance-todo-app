@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Modal,
   View,
   TouchableOpacity,
-  Pressable,
   StyleSheet,
   ActivityIndicator,
   Linking,
@@ -115,6 +113,9 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
             showsVerticalScrollIndicator={false}
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            bounces={true}
           >
             {/* Input Section */}
             <View style={styles.inputGroup}>
@@ -147,22 +148,20 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
                 style={[
                   styles.statusBanner,
                   {
-                    backgroundColor: statusResult.success
-                      ? 'rgba(16, 185, 129, 0.12)'
-                      : 'rgba(239, 68, 68, 0.12)',
-                    borderColor: statusResult.success ? '#10B981' : '#EF4444',
+                    backgroundColor: statusResult.success ? `${theme.doneGreen}15` : `${theme.urgentRed}15`,
+                    borderColor: statusResult.success ? theme.doneGreen : theme.urgentRed,
                   },
                 ]}
               >
                 {statusResult.success ? (
-                  <CheckCircle2 size={16} color="#10B981" />
+                  <CheckCircle2 size={16} color={theme.doneGreen} />
                 ) : (
-                  <AlertCircle size={16} color="#EF4444" />
+                  <AlertCircle size={16} color={theme.urgentRed} />
                 )}
                 <Text
                   style={[
                     styles.statusText,
-                    { color: statusResult.success ? '#10B981' : '#EF4444' },
+                    { color: statusResult.success ? theme.doneGreen : theme.urgentRed },
                   ]}
                 >
                   {statusResult.success
@@ -172,59 +171,58 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
               </View>
             )}
 
+            {/* Last Sync Info */}
             {lastSync && (
               <Text style={[styles.lastSyncText, { color: theme.textMuted }]}>
-                Last synchronized: {new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
+                Last synchronized: {new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })},{' '}
+                {new Date(lastSync).toLocaleDateString()}
               </Text>
             )}
 
-            {/* Help / Instructions Accordion */}
+            {/* How-To Accordion */}
             <TouchableOpacity
               onPress={() => setShowHelp(!showHelp)}
-              style={[styles.helpHeader, { borderColor: theme.border }]}
+              style={[styles.helpToggle, { borderColor: theme.border }]}
               activeOpacity={0.7}
             >
-              <View style={styles.helpHeaderLeft}>
+              <View style={styles.helpToggleLeft}>
                 <HelpCircle size={14} color={theme.accent} />
-                <Text style={[styles.helpHeaderTitle, { color: theme.textMain }]}>
-                  How to get your Google Calendar link
+                <Text style={[styles.helpToggleText, { color: theme.accent }]}>
+                  How to find your iCal link
                 </Text>
               </View>
               {showHelp ? (
-                <ChevronUp size={14} color={theme.textMuted} />
+                <ChevronUp size={14} color={theme.accent} />
               ) : (
-                <ChevronDown size={14} color={theme.textMuted} />
+                <ChevronDown size={14} color={theme.accent} />
               )}
             </TouchableOpacity>
 
             {showHelp && (
-              <View style={[styles.helpBody, { backgroundColor: theme.bgApp, borderColor: theme.border }]}>
-                <Text style={[styles.stepItem, { color: theme.textSecondary }]}>
-                  1. Open Google Calendar in your web browser.
+              <View style={[styles.instructionsBox, { backgroundColor: theme.bgApp, borderColor: theme.border }]}>
+                <Text style={[styles.stepText, { color: theme.textSecondary }]}>
+                  1. Open <Text style={{ fontWeight: '700', color: theme.textMain }}>Google Calendar</Text> on desktop.
                 </Text>
-                <Text style={[styles.stepItem, { color: theme.textSecondary }]}>
-                  2. In the left sidebar under "My calendars", hover over your calendar and click the 3 vertical dots ⋮.
+                <Text style={[styles.stepText, { color: theme.textSecondary }]}>
+                  2. In the left panel, click the 3 dots next to your calendar and choose <Text style={{ fontWeight: '700', color: theme.textMain }}>Settings and sharing</Text>.
                 </Text>
-                <Text style={[styles.stepItem, { color: theme.textSecondary }]}>
-                  3. Select <Text style={{ fontWeight: '700', color: theme.textMain }}>Settings and sharing</Text>.
+                <Text style={[styles.stepText, { color: theme.textSecondary }]}>
+                  3. Scroll down to <Text style={{ fontWeight: '700', color: theme.textMain }}>Integrate calendar</Text>.
                 </Text>
-                <Text style={[styles.stepItem, { color: theme.textSecondary }]}>
-                  4. Scroll down to the <Text style={{ fontWeight: '700', color: theme.textMain }}>Integrate calendar</Text> section.
+                <Text style={[styles.stepText, { color: theme.textSecondary }]}>
+                  4. Copy the URL inside <Text style={{ fontWeight: '700', color: theme.textMain }}>Secret address in iCal format</Text>.
                 </Text>
-                <Text style={[styles.stepItem, { color: theme.textSecondary }]}>
-                  5. Copy the link in the <Text style={{ fontWeight: '700', color: theme.accent }}>"Secret address in iCal format"</Text> box.
-                </Text>
-                <Text style={[styles.stepItem, { color: theme.textSecondary }]}>
-                  6. Paste it above and tap <Text style={{ fontWeight: '700', color: theme.textMain }}>Sync Now</Text>.
+                <Text style={[styles.stepText, { color: theme.textSecondary }]}>
+                  5. Paste it here and hit <Text style={{ fontWeight: '700', color: theme.textMain }}>Sync Now</Text>.
                 </Text>
 
                 <TouchableOpacity
                   onPress={handleOpenGoogleCalendar}
-                  style={[styles.openWebBtn, { borderColor: theme.border }]}
-                  activeOpacity={0.8}
+                  style={[styles.openGCalBtn, { backgroundColor: theme.chipBg }]}
+                  activeOpacity={0.7}
                 >
-                  <ExternalLink size={13} color={theme.accent} />
-                  <Text style={[styles.openWebText, { color: theme.accent }]}>
+                  <ExternalLink size={12} color={theme.accent} />
+                  <Text style={[styles.openGCalText, { color: theme.accent }]}>
                     Open Google Calendar Settings
                   </Text>
                 </TouchableOpacity>
@@ -232,16 +230,14 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
             )}
           </ScrollView>
 
-          {/* Action Buttons */}
-          <View style={[styles.footer, { borderTopColor: theme.border }]}>
+          {/* Actions */}
+          <View style={[styles.actions, { borderTopColor: theme.border }]}>
             <TouchableOpacity
               onPress={onClose}
               style={[styles.cancelBtn, { borderColor: theme.border }]}
               activeOpacity={0.7}
             >
-              <Text style={[styles.cancelBtnText, { color: theme.textSecondary }]}>
-                Close
-              </Text>
+              <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Close</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -250,18 +246,25 @@ export const SyncGoogleCalendarModal: React.FC<SyncGoogleCalendarModalProps> = (
               style={[
                 styles.syncBtn,
                 {
-                  backgroundColor: !icalUrl.trim() ? theme.columnBg : '#4285F4',
+                  backgroundColor: !icalUrl.trim() ? theme.chipBg : theme.accent,
                   opacity: isSyncing ? 0.7 : 1,
                 },
               ]}
-              activeOpacity={0.85}
+              activeOpacity={0.8}
             >
               {isSyncing ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <RefreshCw size={14} color="#FFFFFF" />
-                  <Text style={styles.syncBtnText}>Sync Now</Text>
+                  <RefreshCw size={14} color={!icalUrl.trim() ? theme.textMuted : theme.textOnAccent} />
+                  <Text
+                    style={[
+                      styles.syncBtnText,
+                      { color: !icalUrl.trim() ? theme.textMuted : theme.textOnAccent },
+                    ]}
+                  >
+                    Sync Now
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -310,6 +313,7 @@ const styles = StyleSheet.create({
   },
   scrollArea: {
     paddingHorizontal: 16,
+    flexShrink: 1,
   },
   scrollContent: {
     paddingVertical: 8,
@@ -346,81 +350,78 @@ const styles = StyleSheet.create({
   lastSyncText: {
     fontSize: 11,
     fontStyle: 'italic',
+    textAlign: 'center',
   },
-  helpHeader: {
+  helpToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  helpHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  helpHeaderTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  helpBody: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 6,
-  },
-  stepItem: {
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  openWebBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    alignSelf: 'flex-start',
-    marginTop: 4,
   },
-  openWebText: {
+  helpToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  helpToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  instructionsBox: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 6,
+  },
+  stepText: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  openGCalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 6,
+  },
+  openGCalText: {
     fontSize: 11,
     fontWeight: '700',
   },
-  footer: {
+  actions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
     borderWidth: 1,
   },
-  cancelBtnText: {
+  cancelText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   syncBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   syncBtnText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

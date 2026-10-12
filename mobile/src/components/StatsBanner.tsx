@@ -21,15 +21,11 @@ export const StatsBanner: React.FC<StatsBannerProps> = ({
   const total = stats.total;
   const donePct = total > 0 ? Math.round((stats.done / total) * 100) : 0;
   const inProgPct = total > 0 ? Math.round((stats.inProgress / total) * 100) : 0;
-  const inReviewPct = total > 0 ? Math.round((stats.inReview / total) * 100) : 0;
-  const todoPct = total > 0 ? Math.max(0, 100 - donePct - inProgPct - inReviewPct) : 0;
+  const todoPct = total > 0 ? Math.max(0, 100 - donePct - inProgPct) : 0;
 
   const progressItems = [
     { label: 'Done', count: stats.done, pct: donePct, color: theme.doneGreen },
     { label: 'In Progress', count: stats.inProgress, pct: inProgPct, color: theme.inProgressBlue },
-    ...(stats.inReview > 0
-      ? [{ label: 'In Review', count: stats.inReview, pct: inReviewPct, color: theme.reviewPurple }]
-      : []),
     { label: 'To Do', count: stats.todo, pct: todoPct, color: theme.todoGray },
     ...(stats.rolledOver > 0
       ? [{

@@ -1,18 +1,14 @@
 import React from 'react';
 import {
-  Modal,
   View,
   TouchableOpacity,
-  Pressable,
   ScrollView,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { CenterModal } from './CenterModal';
 import { Text } from './ScaledText';
 import {
   X,
-  Plus,
   Clock,
   Trash2,
   Calendar as CalIcon,
@@ -36,8 +32,6 @@ interface DayDetailsModalProps {
   onOpenTaskDetails: (task: ITask) => void;
   onStatusChange?: (id: string, status: TaskStatus) => void;
   onMoveTask?: (id: string, shiftDays: number) => void;
-  onAddTask: (dateStr: string) => void;
-  onAddEvent: (dateStr: string) => void;
   onDeleteEvent: (id: string, title: string) => void;
 }
 
@@ -52,8 +46,6 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
   onOpenTaskDetails,
   onStatusChange,
   onMoveTask,
-  onAddTask,
-  onAddEvent,
   onDeleteEvent,
 }) => {
   const isToday = dateStr === todayDateStr;
@@ -81,30 +73,6 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
             </View>
 
             <View style={styles.headerActions}>
-              <TouchableOpacity
-                onPress={() => {
-                  onClose();
-                  onAddTask(dateStr);
-                }}
-                style={[styles.actionBtn, { backgroundColor: theme.accent }]}
-                activeOpacity={0.7}
-              >
-                <Plus size={11} color={theme.textOnAccent} />
-                <Text style={[styles.actionBtnText, { color: theme.textOnAccent }]}>Task</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  onClose();
-                  onAddEvent(dateStr);
-                }}
-                style={[styles.actionBtn, { backgroundColor: theme.chipBg, borderColor: theme.border, borderWidth: 1 }]}
-                activeOpacity={0.7}
-              >
-                <Plus size={11} color={theme.textMain} />
-                <Text style={[styles.actionBtnText, { color: theme.textMain }]}>Event</Text>
-              </TouchableOpacity>
-
               <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <X size={24} color={theme.textMain} strokeWidth={2.4} />
               </TouchableOpacity>
@@ -116,6 +84,9 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
             style={styles.dialogBody}
             contentContainerStyle={styles.dialogBodyContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            bounces={true}
           >
             {/* TASKS SECTION */}
             <View style={styles.sectionHeader}>
@@ -168,7 +139,7 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
                           onPress={(e) => {
                             e.stopPropagation?.();
                             if (onStatusChange) {
-                              const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
+                              const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
                               const nextIdx = (statuses.indexOf(task.status) + 1) % statuses.length;
                               onStatusChange(task._id, statuses[nextIdx]);
                             }
@@ -185,28 +156,29 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
                       <Text
                         style={[
                           styles.taskTitle,
-                          { color: theme.textMain },
-                          isDone && { textDecorationLine: 'line-through', opacity: 0.6 },
+                          {
+                            color: isDone ? theme.textMuted : theme.textMain,
+                            textDecorationLine: isDone ? 'line-through' : 'none',
+                          },
                         ]}
                         numberOfLines={2}
                       >
                         {task.title}
                       </Text>
 
-                      {/* Footer: Subtasks & Move Date actions */}
+                      {/* Footer: Subtasks & Quick Move */}
                       <View style={styles.taskCardFooter}>
-                        <View style={styles.taskSubtaskInfo}>
-                          {task.subtasks && task.subtasks.length > 0 && (
-                            <View style={styles.subtaskProgressRow}>
-                              <CheckSquare size={11} color={theme.textMuted} />
-                              <Text style={[styles.subtaskProgressText, { color: theme.textMuted }]}>
-                                {completedSubtasks}/{task.subtasks.length}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
+                        {task.subtasks && task.subtasks.length > 0 ? (
+                          <View style={styles.subtaskProgressRow}>
+                            <CheckSquare size={11} color={theme.accent} />
+                            <Text style={[styles.subtaskProgressText, { color: theme.textSecondary }]}>
+                              {completedSubtasks}/{task.subtasks.length}
+                            </Text>
+                          </View>
+                        ) : (
+                          <View />
+                        )}
 
-                        {/* Quick Move to Next Day / Next Week */}
                         {onMoveTask && (
                           <View style={styles.moveBtnRow}>
                             <TouchableOpacity
@@ -214,10 +186,10 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
                                 e.stopPropagation?.();
                                 onMoveTask(task._id, 1);
                               }}
-                              style={[styles.moveBtn, { borderColor: theme.border }]}
-                              activeOpacity={0.7}
+                              style={[styles.moveBtn, { backgroundColor: theme.bgCard, borderColor: theme.border }]}
+                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             >
-                              <ArrowRight size={10} color={theme.accent} />
+                              <ArrowRight size={10} color={theme.textSecondary} />
                               <Text style={[styles.moveBtnText, { color: theme.textSecondary }]}>+1d</Text>
                             </TouchableOpacity>
 
@@ -226,10 +198,10 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
                                 e.stopPropagation?.();
                                 onMoveTask(task._id, 7);
                               }}
-                              style={[styles.moveBtn, { borderColor: theme.border }]}
-                              activeOpacity={0.7}
+                              style={[styles.moveBtn, { backgroundColor: theme.bgCard, borderColor: theme.border }]}
+                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                             >
-                              <FastForward size={10} color={theme.accent} />
+                              <FastForward size={10} color={theme.textSecondary} />
                               <Text style={[styles.moveBtnText, { color: theme.textSecondary }]}>+7d</Text>
                             </TouchableOpacity>
                           </View>
@@ -244,23 +216,13 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
                 <Text style={[styles.emptyText, { color: theme.textMuted }]}>
                   No tasks scheduled for this day
                 </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    onClose();
-                    onAddTask(dateStr);
-                  }}
-                  style={[styles.emptyAddBtn, { backgroundColor: theme.accent }]}
-                >
-                  <Plus size={12} color={theme.textOnAccent} />
-                  <Text style={[styles.emptyAddBtnText, { color: theme.textOnAccent }]}>Add Task</Text>
-                </TouchableOpacity>
               </View>
             )}
 
             {/* EVENTS SECTION */}
-            <View style={[styles.sectionHeader, { marginTop: 12 }]}>
+            <View style={[styles.sectionHeader, { marginTop: 16 }]}>
               <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-                Schedule & Events ({events.length})
+                Events ({events.length})
               </Text>
             </View>
 
@@ -280,23 +242,19 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
                     ]}
                   >
                     <View style={styles.eventInfo}>
-                      <View style={styles.eventMetaRow}>
-                        <Clock size={11} color={theme.textMuted} />
-                        <Text style={[styles.eventTime, { color: theme.textSecondary }]}>
-                          {evt.startTime}{evt.endTime ? ` - ${evt.endTime}` : ''}
-                        </Text>
-                        {evt.source === 'google' && (
-                          <View style={styles.googleBadge}>
-                            <Text style={styles.googleBadgeText}>Google</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={[styles.eventTitle, { color: theme.textMain }]}>
+                      <Text style={[styles.eventTitle, { color: theme.textMain }]} numberOfLines={1}>
                         {evt.title}
                       </Text>
+                      <View style={styles.eventTimeRow}>
+                        <Clock size={11} color={theme.textMuted} />
+                        <Text style={[styles.eventTime, { color: theme.textSecondary }]}>
+                          {evt.startTime}
+                          {evt.endTime ? ` - ${evt.endTime}` : ''}
+                        </Text>
+                      </View>
                       {evt.location ? (
-                        <Text style={[styles.eventLocation, { color: theme.textMuted }]}>
-                          📍 {evt.location}
+                        <Text style={[styles.eventLoc, { color: theme.textMuted }]} numberOfLines={1}>
+                          {evt.location}
                         </Text>
                       ) : null}
                     </View>
@@ -356,18 +314,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  actionBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   closeBtn: {
     width: 38,
     height: 38,
@@ -378,6 +324,7 @@ const styles = StyleSheet.create({
   },
   dialogBody: {
     paddingHorizontal: 16,
+    flexShrink: 1,
   },
   dialogBodyContent: {
     paddingVertical: 14,
@@ -438,10 +385,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 2,
   },
-  taskSubtaskInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   subtaskProgressRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -460,8 +403,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
     paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 5,
+    paddingVertical: 3,
+    borderRadius: 6,
     borderWidth: 1,
   },
   moveBtnText: {
@@ -469,71 +412,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyBox: {
+    padding: 16,
     borderRadius: 10,
     borderWidth: 1,
-    padding: 16,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    borderStyle: 'dashed',
   },
   emptyText: {
     fontSize: 12,
-  },
-  emptyAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  emptyAddBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontStyle: 'italic',
   },
   eventsList: {
     gap: 8,
   },
   eventCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   eventInfo: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
-  eventMetaRow: {
+  eventTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  eventTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   eventTime: {
     fontSize: 11,
     fontWeight: '600',
   },
-  googleBadge: {
-    backgroundColor: '#4285F4',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  googleBadgeText: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  eventTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  eventLocation: {
+  eventLoc: {
     fontSize: 11,
   },
   deleteBtn: {
-    padding: 6,
+    padding: 8,
   },
 });

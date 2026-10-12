@@ -5,21 +5,21 @@ export const getMuiTheme = (isDark: boolean) => {
     palette: {
       mode: isDark ? 'dark' : 'light',
       primary: {
-        main: isDark ? '#EFD395' : '#F9DC5C',
-        contrastText: isDark ? '#131313' : '#1F1E1D',
+        main: isDark ? '#00FF85' : '#D07915',
+        contrastText: isDark ? '#0D0D0D' : '#FFFFFF',
       },
       secondary: {
-        main: isDark ? '#4B4A48' : '#FAE588',
+        main: isDark ? '#1E90FF' : '#CDB398',
       },
       background: {
-        default: isDark ? '#131313' : '#FDF8E1',
-        paper: isDark ? '#262625' : '#FFFFFF',
+        default: isDark ? '#0D0D0D' : '#DDD5CC',
+        paper: isDark ? '#161616' : '#FFFFFF',
       },
       text: {
-        primary: isDark ? '#F5F5F4' : '#1F1E1D',
-        secondary: isDark ? '#A4A4A4' : '#5C5648',
+        primary: isDark ? '#FFFFFF' : '#181714',
+        secondary: isDark ? '#B3B3B3' : '#8E4F22',
       },
-      divider: isDark ? '#4B4A48' : '#FAE588',
+      divider: isDark ? '#262626' : '#CDB398',
     },
     typography: {
       fontFamily: [
@@ -44,10 +44,10 @@ export const getMuiTheme = (isDark: boolean) => {
           root: {
             backgroundImage: 'none',
             borderRadius: 12,
-            border: `1px solid ${isDark ? '#4B4A48' : '#FAE588'}`,
+            border: `1px solid ${isDark ? '#262626' : '#CDB398'}`,
             boxShadow: isDark
-              ? '0 1px 3px rgba(0,0,0,0.5)'
-              : '0 1px 3px rgba(130,110,40,0.08)',
+              ? '0 1px 3px rgba(0,0,0,0.6)'
+              : '0 1px 3px rgba(94,60,20,0.12)',
           },
         },
       },

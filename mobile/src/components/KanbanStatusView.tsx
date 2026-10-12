@@ -26,7 +26,6 @@ const COLUMN_WIDTH = width * 0.78;
 const COLUMNS: { id: TaskStatus; title: string; colorKey: keyof ThemeColors }[] = [
   { id: 'TODO', title: 'TO DO', colorKey: 'todoGray' },
   { id: 'IN_PROGRESS', title: 'IN PROGRESS', colorKey: 'inProgressBlue' },
-  { id: 'IN_REVIEW', title: 'IN REVIEW', colorKey: 'reviewPurple' },
   { id: 'DONE', title: 'DONE', colorKey: 'doneGreen' },
 ];
 
@@ -208,7 +207,7 @@ const styles = StyleSheet.create({
   columnsContainer: {
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 90,
+    paddingBottom: 170,
     gap: 12,
   },
   column: {

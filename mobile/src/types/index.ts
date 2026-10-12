@@ -1,4 +1,4 @@
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type TaskType = 'task' | 'bug' | 'story' | 'epic';
 
@@ -81,7 +81,6 @@ export interface MetaStats {
   total: number;
   done: number;
   inProgress: number;
-  inReview: number;
   todo: number;
   rolledOver: number;
   completionRate: number;

@@ -1,27 +1,56 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, TouchableOpacity, StyleSheet, Platform, Animated, LayoutChangeEvent } from 'react-native';
 import { Text } from './ScaledText';
-import { Calendar as DayIcon, CalendarDays, Calendar as CalIcon, Plus } from 'lucide-react-native';
+import { Calendar as DayIcon, CalendarDays, Calendar as CalIcon } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 
 interface BottomNavProps {
   theme: ThemeColors;
   currentView: 'day' | 'weekly' | 'calendar';
   onViewChange: (view: 'day' | 'weekly' | 'calendar') => void;
-  onOpenCreate: () => void;
 }
+
+type TabLayout = { x: number; width: number };
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   theme,
   currentView,
   onViewChange,
-  onOpenCreate,
 }) => {
   const tabs = [
     { id: 'day', label: 'Today', icon: DayIcon },
     { id: 'weekly', label: '7 Days', icon: CalendarDays },
     { id: 'calendar', label: 'Calendar', icon: CalIcon },
   ] as const;
+
+  const [layouts, setLayouts] = useState<Record<string, TabLayout>>({});
+  const indicatorX = useRef(new Animated.Value(0)).current;
+  const indicatorWidth = useRef(new Animated.Value(0)).current;
+  const hasPositioned = useRef(false);
+
+  // Slide the highlight pill to the selected tab (snap on first layout)
+  useEffect(() => {
+    const target = layouts[currentView];
+    if (!target) return;
+    if (!hasPositioned.current) {
+      indicatorX.setValue(target.x);
+      indicatorWidth.setValue(target.width);
+      hasPositioned.current = true;
+      return;
+    }
+    const spring = { damping: 18, stiffness: 200, mass: 0.8, useNativeDriver: false };
+    Animated.parallel([
+      Animated.spring(indicatorX, { toValue: target.x, ...spring }),
+      Animated.spring(indicatorWidth, { toValue: target.width, ...spring }),
+    ]).start();
+  }, [currentView, layouts, indicatorX, indicatorWidth]);
+
+  const handleTabLayout = (id: string) => (e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout;
+    setLayouts((prev) =>
+      prev[id]?.x === x && prev[id]?.width === width ? prev : { ...prev, [id]: { x, width } }
+    );
+  };
 
   return (
     <View style={styles.wrapper} pointerEvents="box-none">
@@ -35,6 +64,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           },
         ]}
       >
+        {layouts[currentView] && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.indicator,
+              { backgroundColor: theme.accent, left: indicatorX, width: indicatorWidth },
+            ]}
+          />
+        )}
+
         {tabs.map((tab) => {
           const isSelected = currentView === tab.id;
           const Icon = tab.icon;
@@ -43,10 +82,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             <TouchableOpacity
               key={tab.id}
               onPress={() => onViewChange(tab.id)}
-              style={[
-                styles.tabButton,
-                isSelected && { backgroundColor: theme.accent },
-              ]}
+              onLayout={handleTabLayout(tab.id)}
+              style={styles.tabButton}
               activeOpacity={0.7}
             >
               <Icon
@@ -67,22 +104,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             </TouchableOpacity>
           );
         })}
-
-        {/* Primary Add Task Floating Button */}
-        <TouchableOpacity
-          onPress={onOpenCreate}
-          style={[
-            styles.createTab,
-            {
-              backgroundColor: theme.accent,
-              shadowColor: theme.accent,
-            },
-          ]}
-          activeOpacity={0.8}
-          accessibilityLabel="Add Task"
-        >
-          <Plus size={22} color={theme.textOnAccent} strokeWidth={2.6} />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -110,6 +131,12 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     gap: 4,
   },
+  indicator: {
+    position: 'absolute',
+    top: 5,
+    bottom: 5,
+    borderRadius: 999,
+  },
   tabButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -120,17 +147,5 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 12,
-  },
-  createTab: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    marginLeft: 4,
   },
 });

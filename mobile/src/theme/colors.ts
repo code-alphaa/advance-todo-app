@@ -15,7 +15,6 @@ export interface ThemeColors {
   chipBg: string;
   doneGreen: string;
   inProgressBlue: string;
-  reviewPurple: string;
   todoGray: string;
   urgentRed: string;
   highOrange: string;
@@ -26,55 +25,55 @@ export interface ThemeColors {
 
 export const darkTheme: ThemeColors = {
   isDark: true,
-  // Palette: #EFD395 (Straw Yellow), #A4A4A4 (Rainy Grey), #777674 (Steel Wool),
-  //          #4B4A48 (Private Black), #262625 (Nero), #131313 (Cursed Black)
-  bgApp: '#131313',          // Cursed Black
-  bgCard: '#262625',         // Nero
-  columnBg: '#1B1B1B',       // Deep surface container
-  columnHeader: '#262625',   // Nero
-  border: '#4B4A48',         // Private Black
-  textMain: '#F5F5F4',       // High-contrast clean off-white
-  textSecondary: '#A4A4A4',  // Rainy Grey
-  textMuted: '#777674',      // Steel Wool
-  accent: '#EFD395',         // Straw Yellow
-  accentHover: '#F7E4B8',    // Light Straw Yellow
-  accentSubtle: 'rgba(239, 211, 149, 0.15)',
-  textOnAccent: '#131313',   // Cursed Black
-  chipBg: '#262625',         // Nero
-  doneGreen: '#10B981',
-  inProgressBlue: '#3B82F6',
-  reviewPurple: '#A855F7',
-  todoGray: '#777674',       // Steel Wool
-  urgentRed: '#EF4444',
+  // Palette: #0D0D0D (Background), #FFFFFF (Primary Text),
+  //          #00FF85 (Accent 1 / neon green), #1E90FF (Accent 2 / electric blue),
+  //          #FF0099 (Hover Effects / vivid pink)
+  bgApp: '#0D0D0D',          // Almost black
+  bgCard: '#161616',         // Elevated surface
+  columnBg: '#131313',       // Deep surface container
+  columnHeader: '#161616',   // Elevated surface
+  border: '#262626',         // Subtle divider
+  textMain: '#FFFFFF',       // Pure white
+  textSecondary: '#B3B3B3',  // Muted white
+  textMuted: '#6E6E6E',      // Dim gray
+  accent: '#00FF85',         // Neon green
+  accentHover: '#FF0099',    // Vivid pink
+  accentSubtle: 'rgba(0, 255, 133, 0.15)',
+  textOnAccent: '#0D0D0D',   // Almost black
+  chipBg: '#1A1A1A',         // Chip surface
+  doneGreen: '#00FF85',      // Neon green
+  inProgressBlue: '#1E90FF', // Electric blue
+  todoGray: '#6E6E6E',       // Dim gray
+  urgentRed: '#FF0099',      // Vivid pink
   highOrange: '#F97316',
-  mediumYellow: '#EFD395',   // Straw Yellow
+  mediumYellow: '#FFD400',
   lowBlue: '#06B6D4',
   modalBackdrop: 'transparent',
 };
 
 export const lightTheme: ThemeColors = {
   isDark: false,
-  // Palette: #FDF8E1 (Cornsilk), #FDF4CB (Lemon Chiffon), #FCEFB4 (Vanilla), #FAE588 (Jasmine), #F9DC5C (Naples Yellow)
-  bgApp: '#FDF8E1',          // Cornsilk
+  // Palette: #DDD5CC (Pearl Oyster), #CDB398 (Tawny Tan), #D99847 (Aged Gouda),
+  //          #D07915 (Tree Sap), #8E4F22 (Plane Brown), #181714 (Pot Black)
+  bgApp: '#DDD5CC',          // Pearl Oyster
   bgCard: '#FFFFFF',         // Crisp White
-  columnBg: '#FDF4CB',       // Lemon Chiffon
-  columnHeader: '#FCEFB4',   // Vanilla
-  border: '#FAE588',         // Jasmine
-  textMain: '#1F1E1D',       // Dark Charcoal
-  textSecondary: '#5C5648',  // Olive Umber
-  textMuted: '#8F8778',      // Warm Muted Gray
-  accent: '#F9DC5C',         // Naples Yellow
-  accentHover: '#EBCB40',    // Naples Yellow hover
-  accentSubtle: '#FDF4CB',   // Lemon Chiffon Subtle
-  textOnAccent: '#1F1E1D',   // Dark Charcoal for clear contrast on Naples Yellow
-  chipBg: '#FCEFB4',         // Vanilla
+  columnBg: '#CDB398',       // Tawny Tan
+  columnHeader: '#D99847',   // Aged Gouda
+  border: '#CDB398',         // Tawny Tan
+  textMain: '#181714',       // Pot Black
+  textSecondary: '#8E4F22',  // Plane Brown
+  textMuted: '#A98B6E',      // Muted tan
+  accent: '#D07915',         // Tree Sap
+  accentHover: '#8E4F22',    // Plane Brown
+  accentSubtle: '#EADDCA',   // Soft cream
+  textOnAccent: '#FFFFFF',   // White for clear contrast on Tree Sap
+  chipBg: '#D99847',         // Aged Gouda
   doneGreen: '#10B981',
-  inProgressBlue: '#3B82F6',
-  reviewPurple: '#A855F7',
-  todoGray: '#8F8778',
-  urgentRed: '#EF4444',
+  inProgressBlue: '#1E90FF', // Electric blue
+  todoGray: '#A98B6E',
+  urgentRed: '#FF0099',      // Vivid pink
   highOrange: '#F97316',
-  mediumYellow: '#F9DC5C',   // Naples Yellow
+  mediumYellow: '#D99847',   // Aged Gouda
   lowBlue: '#06B6D4',
   modalBackdrop: 'transparent',
 };

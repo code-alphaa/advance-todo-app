@@ -48,7 +48,13 @@ export const ReminderTimesEditor: React.FC<ReminderTimesEditorProps> = ({
         {headerRight}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipsRow}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
+      >
         {[0, 1, 2, 3, 4, 5].map((option) => {
           const isSelected = count === option;
           return (

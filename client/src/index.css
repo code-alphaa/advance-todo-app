@@ -3,46 +3,55 @@
 @tailwind utilities;
 
 :root {
-  /* Light Theme based on user palette: #FDF8E1, #FDF4CB, #FCEFB4, #FAE588, #F9DC5C */
-  --bg-app: #FDF8E1;
-  --bg-surface: #FDF4CB;
+  /* Light Theme from user palette:
+     #DDD5CC (Pearl Oyster), #CDB398 (Tawny Tan), #D99847 (Aged Gouda),
+     #D07915 (Tree Sap), #8E4F22 (Plane Brown), #181714 (Pot Black) */
+  --bg-app: #DDD5CC;         /* Pearl Oyster */
+  --bg-surface: #E7E1D9;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #FFFDF5;
-  --border-color: #FAE588;
-  --border-hover: #F9DC5C;
-  --accent-color: #F9DC5C;
-  --accent-hover: #EBCB40;
-  --accent-subtle: #FDF4CB;
-  --text-main: #1F1E1D;
-  --text-secondary: #5C5648;
-  --text-muted: #8F8778;
-  --text-on-accent: #1F1E1D;
-  --column-bg: #FDF4CB;
-  --column-header: #FCEFB4;
-  --chip-bg: #FCEFB4;
-  --shadow-card: 0 1px 3px rgba(130, 110, 40, 0.08), 0 2px 6px rgba(130, 110, 40, 0.04);
+  --bg-card-hover: #F5F1EC;
+  --border-color: #CDB398;   /* Tawny Tan */
+  --border-hover: #D99847;   /* Aged Gouda */
+  --accent-color: #D07915;   /* Tree Sap */
+  --accent-hover: #8E4F22;   /* Plane Brown */
+  --accent-subtle: #EADDCA;
+  --accent-2: #D99847;       /* Aged Gouda */
+  --accent-2-subtle: #EFE4D6;
+  --text-main: #181714;      /* Pot Black */
+  --text-secondary: #8E4F22; /* Plane Brown */
+  --text-muted: #A98B6E;
+  --text-on-accent: #FFFFFF;
+  --column-bg: #CDB398;      /* Tawny Tan */
+  --column-header: #D99847;  /* Aged Gouda */
+  --chip-bg: #D99847;        /* Aged Gouda */
+  --shadow-card: 0 1px 3px rgba(94, 60, 20, 0.12), 0 2px 6px rgba(94, 60, 20, 0.06);
 }
 
 :root.dark,
 html.dark {
-  /* Dark Theme from user palette: #EFD395, #A4A4A4, #777674, #4B4A48, #262625, #131313 */
-  --bg-app: #131313;
-  --bg-surface: #262625;
-  --bg-card: #262625;
-  --bg-card-hover: #30302E;
-  --border-color: #4B4A48;
-  --border-hover: #777674;
-  --accent-color: #EFD395;
-  --accent-hover: #F7E4B8;
-  --accent-subtle: rgba(239, 211, 149, 0.15);
-  --text-main: #F5F5F4;
-  --text-secondary: #A4A4A4;
-  --text-muted: #777674;
-  --text-on-accent: #131313;
-  --column-bg: #1B1B1B;
-  --column-header: #262625;
-  --chip-bg: #262625;
-  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* Dark Theme from user palette:
+     #0D0D0D (Background), #FFFFFF (Primary Text),
+     #00FF85 (Accent 1 / neon green), #1E90FF (Accent 2 / electric blue),
+     #FF0099 (Hover Effects / vivid pink) */
+  --bg-app: #0D0D0D;
+  --bg-surface: #161616;
+  --bg-card: #161616;
+  --bg-card-hover: #1F1F1F;
+  --border-color: #262626;
+  --border-hover: #00FF85;
+  --accent-color: #00FF85;   /* neon green */
+  --accent-hover: #FF0099;   /* vivid pink */
+  --accent-subtle: rgba(0, 255, 133, 0.14);
+  --accent-2: #1E90FF;       /* electric blue */
+  --accent-2-subtle: rgba(30, 144, 255, 0.16);
+  --text-main: #FFFFFF;
+  --text-secondary: #B3B3B3;
+  --text-muted: #6E6E6E;
+  --text-on-accent: #0D0D0D;
+  --column-bg: #131313;
+  --column-header: #161616;
+  --chip-bg: #1A1A1A;
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 html,

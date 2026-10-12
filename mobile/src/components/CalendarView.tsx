@@ -1,13 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { View, TouchableOpacity, StyleSheet, Animated, PanResponder } from 'react-native';
 import { Text } from './ScaledText';
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Clock,
-  Trash2,
-  Calendar as CalIcon,
   RefreshCw,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
@@ -15,10 +12,10 @@ import { IEvent, ITask, TaskStatus } from '../types/index';
 import {
   getMonthCalendarCells,
   formatMonthYear,
-  formatFriendlyDate,
 } from '../utils/dateUtils';
 import { SyncGoogleCalendarModal } from './SyncGoogleCalendarModal';
 import { DayDetailsModal } from './DayDetailsModal';
+import { googleCalendarSyncService } from '../services/googleCalendarSync';
 
 interface CalendarViewProps {
   theme: ThemeColors;
@@ -26,12 +23,12 @@ interface CalendarViewProps {
   tasks: ITask[];
   todayDateStr: string;
   onAddEvent: (dateStr: string) => void;
-  onAddTask?: (dateStr: string) => void;
   onDeleteEvent: (id: string, title: string) => void;
   onOpenTaskDetails: (task: ITask) => void;
   onMoveTask?: (id: string, shiftDays: number) => void;
   onStatusChange?: (id: string, status: TaskStatus) => void;
   onRefreshEvents?: () => void;
+  jumpToTodaySignal?: number;
 }
 
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -42,17 +39,29 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   tasks,
   todayDateStr,
   onAddEvent,
-  onAddTask,
   onDeleteEvent,
   onOpenTaskDetails,
   onMoveTask,
   onStatusChange,
   onRefreshEvents,
+  jumpToTodaySignal,
 }) => {
   const [currentMonthDate, setCurrentMonthDate] = useState(() => new Date());
   const [selectedCellDate, setSelectedCellDate] = useState<string>(todayDateStr);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isDayPopupOpen, setIsDayPopupOpen] = useState(false);
+  const [hasCalendarLink, setHasCalendarLink] = useState(false);
+
+  const refreshCalendarLink = useCallback(() => {
+    googleCalendarSyncService
+      .getSavedIcalUrl()
+      .then((url) => setHasCalendarLink(Boolean(url)))
+      .catch(() => setHasCalendarLink(false));
+  }, []);
+
+  useEffect(() => {
+    refreshCalendarLink();
+  }, [refreshCalendarLink]);
 
   const year = currentMonthDate.getFullYear();
   const month = currentMonthDate.getMonth();
@@ -62,18 +71,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     [year, month, todayDateStr]
   );
 
-  const handlePrevMonth = () => {
-    setCurrentMonthDate(new Date(year, month - 1, 1));
-  };
+  const weeks = useMemo(() => {
+    const rows: typeof cells[] = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      rows.push(cells.slice(i, i + 7));
+    }
+    return rows;
+  }, [cells]);
 
-  const handleNextMonth = () => {
-    setCurrentMonthDate(new Date(year, month + 1, 1));
-  };
-
-  const handleJumpToToday = () => {
-    setCurrentMonthDate(new Date());
-    setSelectedCellDate(todayDateStr);
-  };
+  const handlePrevMonth = () => animateMonthChange('prev');
+  const handleNextMonth = () => animateMonthChange('next');
 
   // Selected date events & tasks
   const selectedDateEvents = events.filter((e) => e.eventDate === selectedCellDate);
@@ -84,12 +91,101 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setIsDayPopupOpen(true);
   };
 
+  // --- Month swipe gesture -------------------------------------------------
+  const pan = useRef(new Animated.ValueXY()).current;
+  const fade = useRef(new Animated.Value(1)).current;
+  const SWIPE_THRESHOLD = 45;
+
+  // Keeps the latest month available to the (created-once) PanResponder
+  const currentMonthRef = useRef(currentMonthDate);
+  useEffect(() => {
+    currentMonthRef.current = currentMonthDate;
+  }, [currentMonthDate]);
+
+  const runMonthTransition = useCallback(
+    (direction: 'next' | 'prev', nextMonth: Date) => {
+      const outX = direction === 'next' ? -60 : 60;
+      Animated.parallel([
+        Animated.timing(fade, { toValue: 0, duration: 130, useNativeDriver: false }),
+        Animated.timing(pan.x, { toValue: outX, duration: 130, useNativeDriver: false }),
+      ]).start(() => {
+        setCurrentMonthDate(nextMonth);
+        pan.setValue({ x: direction === 'next' ? 60 : -60, y: 0 });
+        fade.setValue(0);
+        Animated.parallel([
+          Animated.timing(fade, { toValue: 1, duration: 190, useNativeDriver: false }),
+          Animated.spring(pan.x, { toValue: 0, useNativeDriver: false, bounciness: 6 }),
+        ]).start();
+      });
+    },
+    [fade, pan]
+  );
+
+  const animateMonthChange = useCallback(
+    (direction: 'next' | 'prev') => {
+      const cur = currentMonthRef.current;
+      runMonthTransition(
+        direction,
+        new Date(cur.getFullYear(), cur.getMonth() + (direction === 'next' ? 1 : -1), 1)
+      );
+    },
+    [runMonthTransition]
+  );
+
+  // Smoothly slide the calendar to the current month (used by "Today")
+  const animateToToday = useCallback(() => {
+    setSelectedCellDate(todayDateStr);
+    const now = new Date();
+    const cur = currentMonthRef.current;
+    const delta =
+      (now.getFullYear() - cur.getFullYear()) * 12 + (now.getMonth() - cur.getMonth());
+    if (delta === 0) return;
+    runMonthTransition(
+      delta > 0 ? 'next' : 'prev',
+      new Date(now.getFullYear(), now.getMonth(), 1)
+    );
+  }, [runMonthTransition, todayDateStr]);
+
+  // The top "TODAY" bar also drives the calendar while this view is mounted
+  useEffect(() => {
+    if (jumpToTodaySignal) animateToToday();
+  }, [jumpToTodaySignal, animateToToday]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) =>
+        Math.abs(g.dx) > 12 || Math.abs(g.dy) > 12,
+      // Steal the gesture from the touchable day cells once it becomes a swipe
+      onMoveShouldSetPanResponderCapture: (_e, g) =>
+        Math.abs(g.dx) > 12 || Math.abs(g.dy) > 12,
+      onPanResponderMove: (_e, g) => {
+        pan.setValue({ x: g.dx * 0.4, y: g.dy * 0.4 });
+      },
+      onPanResponderRelease: (_e, g) => {
+        const horizontal = Math.abs(g.dx) >= Math.abs(g.dy);
+        let direction: 'next' | 'prev' | null = null;
+        if (horizontal) {
+          if (g.dx <= -SWIPE_THRESHOLD) direction = 'next'; // swipe left
+          else if (g.dx >= SWIPE_THRESHOLD) direction = 'prev'; // swipe right
+        } else {
+          if (g.dy >= SWIPE_THRESHOLD) direction = 'next'; // swipe down
+          else if (g.dy <= -SWIPE_THRESHOLD) direction = 'prev'; // swipe up
+        }
+
+        if (direction) {
+          animateMonthChange(direction);
+        } else {
+          Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+      },
+    })
+  ).current;
+
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.bgApp }]}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={[styles.container, { backgroundColor: theme.bgApp }]}>
       {/* Month Navigation Header (Arrows on Start & End) */}
       <View style={[styles.headerBox, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
         <TouchableOpacity
@@ -107,21 +203,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           <View style={styles.centerActions}>
             <TouchableOpacity
-              onPress={handleJumpToToday}
+              onPress={animateToToday}
               style={[styles.todayJumpBtn, { backgroundColor: theme.chipBg, borderColor: theme.border }]}
               activeOpacity={0.7}
             >
               <Text style={[styles.todayJumpText, { color: theme.textMain }]}>Today</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setIsSyncModalOpen(true)}
-              style={[styles.syncGoogleTopBtn, { backgroundColor: '#4285F4' }]}
-              activeOpacity={0.8}
-            >
-              <RefreshCw size={10} color="#FFFFFF" />
-              <Text style={styles.syncGoogleTopText}>Google Sync</Text>
-            </TouchableOpacity>
+            {!hasCalendarLink && (
+              <TouchableOpacity
+                onPress={() => setIsSyncModalOpen(true)}
+                style={[styles.syncGoogleTopBtn, { backgroundColor: '#4285F4' }]}
+                activeOpacity={0.8}
+              >
+                <RefreshCw size={10} color="#FFFFFF" />
+                <Text style={styles.syncGoogleTopText}>Google Sync</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={() => onAddEvent(selectedCellDate)}
@@ -152,191 +250,72 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         ))}
       </View>
 
-      {/* Calendar Month Grid */}
-      <View style={[styles.gridContainer, { borderColor: theme.border }]}>
-        {cells.map((cell, idx) => {
-          const isSelected = cell.dateString === selectedCellDate;
-          const cellEvents = events.filter((e) => e.eventDate === cell.dateString);
-          const cellTasks = tasks.filter((t) => t.assignedDate === cell.dateString);
+      {/* Calendar Month Grid (fills remaining space, swipe to change month) */}
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.gridWrapper,
+          { opacity: fade, transform: pan.getTranslateTransform() },
+        ]}
+      >
+        <View style={[styles.gridContainer, { borderColor: theme.border }]}>
+          {weeks.map((week, wi) => (
+            <View key={wi} style={styles.weekRow}>
+              {week.map((cell, idx) => {
+                const isSelected = cell.dateString === selectedCellDate;
+                const cellEvents = events.filter((e) => e.eventDate === cell.dateString);
+                const cellTasks = tasks.filter((t) => t.assignedDate === cell.dateString);
 
-          return (
-            <TouchableOpacity
-              key={`${cell.dateString}-${idx}`}
-              onPress={() => handleCellPress(cell.dateString)}
-              style={[
-                styles.cell,
-                {
-                  backgroundColor: isSelected
-                    ? theme.columnBg
-                    : cell.isCurrentMonth
-                    ? theme.bgCard
-                    : theme.bgApp,
-                  borderColor: isSelected ? theme.accent : theme.border,
-                  borderWidth: isSelected ? 1.5 : 0.5,
-                  opacity: cell.isCurrentMonth ? 1 : 0.4,
-                },
-              ]}
-              activeOpacity={0.7}
-            >
-              {/* Day Number and Today Badge */}
-              <View style={styles.cellDayHeader}>
-                <Text
-                  style={[
-                    styles.cellDayNumber,
-                    {
-                      color: isSelected
-                        ? theme.accent
-                        : cell.isToday
-                        ? theme.accent
-                        : theme.textMain,
-                      fontWeight: cell.isToday ? '900' : '600',
-                    },
-                  ]}
-                >
-                  {cell.dayNumber}
-                </Text>
-
-                {cell.isToday && (
-                  <View style={[styles.todayTag, { backgroundColor: theme.accent }]}>
-                    <Text style={[styles.todayTagText, { color: theme.textOnAccent }]}>
-                      TODAY
+                return (
+                  <TouchableOpacity
+                    key={`${cell.dateString}-${idx}`}
+                    onPress={() => handleCellPress(cell.dateString)}
+                    style={[
+                      styles.cell,
+                      {
+                        backgroundColor: isSelected
+                          ? theme.columnBg
+                          : cell.isCurrentMonth
+                          ? theme.bgCard
+                          : theme.bgApp,
+                        borderColor: isSelected ? theme.accent : theme.border,
+                        borderWidth: isSelected ? 1.5 : 0.5,
+                        opacity: cell.isCurrentMonth ? 1 : 0.4,
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.cellDayNumber,
+                        {
+                          color: isSelected || cell.isToday ? theme.accent : theme.textMain,
+                          fontWeight: cell.isToday ? '900' : '600',
+                        },
+                      ]}
+                    >
+                      {cell.dayNumber}
                     </Text>
-                  </View>
-                )}
-              </View>
 
-              {/* Event & Task Dots */}
-              <View style={styles.dotsRow}>
-                {cellEvents.slice(0, 2).map((evt) => (
-                  <View
-                    key={evt._id}
-                    style={[styles.eventDot, { backgroundColor: evt.color || theme.accent }] }
-                  />
-                ))}
-                {cellTasks.length > 0 && (
-                  <View style={[styles.taskDot, { backgroundColor: theme.textSecondary }]} />
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Selected Day Details Section */}
-      <View style={[styles.selectedDayDetails, { backgroundColor: theme.bgCard, borderColor: theme.border }]}>
-        <View style={styles.selectedDayHeader}>
-          <Text style={[styles.selectedDayTitle, { color: theme.textMain }]}>
-            {formatFriendlyDate(selectedCellDate)}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {onAddTask && (
-              <TouchableOpacity
-                onPress={() => onAddTask(selectedCellDate)}
-                style={[styles.smallAddEventBtn, { backgroundColor: theme.chipBg, borderColor: theme.border, borderWidth: 1 }]}
-                activeOpacity={0.7}
-              >
-                <Plus size={11} color={theme.textMain} />
-                <Text style={[styles.smallAddEventText, { color: theme.textMain }]}>Task</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              onPress={() => onAddEvent(selectedCellDate)}
-              style={[styles.smallAddEventBtn, { backgroundColor: theme.accent }]}
-              activeOpacity={0.7}
-            >
-              <Plus size={11} color={theme.textOnAccent} />
-              <Text style={[styles.smallAddEventText, { color: theme.textOnAccent }]}>Add Event</Text>
-            </TouchableOpacity>
-          </View>
+                    {/* Event & Task Dots */}
+                    <View style={styles.dotsRow}>
+                      {cellEvents.slice(0, 2).map((evt) => (
+                        <View
+                          key={evt._id}
+                          style={[styles.eventDot, { backgroundColor: evt.color || theme.accent }]}
+                        />
+                      ))}
+                      {cellTasks.length > 0 && (
+                        <View style={[styles.taskDot, { backgroundColor: theme.textSecondary }]} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
         </View>
-
-        {/* Events for this day */}
-        <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-          Events ({selectedDateEvents.length})
-        </Text>
-        {selectedDateEvents.length > 0 ? (
-          <View style={styles.dayEventsList}>
-            {selectedDateEvents.map((evt) => (
-              <View
-                key={evt._id}
-                style={[styles.detailedEventCard, { borderColor: theme.border, borderLeftColor: evt.color || theme.accent }]}
-              >
-                <View style={styles.detailedEventInfo}>
-                  <View style={styles.eventTimeRow}>
-                    <Clock size={11} color={theme.textMuted} />
-                    <Text style={[styles.detailedEventTime, { color: theme.textSecondary }]}>
-                      {evt.startTime}{evt.endTime ? ` - ${evt.endTime}` : ''}
-                    </Text>
-                    {evt.source === 'google' && (
-                      <View style={[styles.googleBadge, { backgroundColor: '#4285F4' }]}>
-                        <Text style={styles.googleBadgeText}>Google</Text>
-                      </View>
-                    )}
-                    {evt.reminderMinutes > 0 && (
-                      <View style={[styles.reminderPill, { backgroundColor: theme.chipBg }]}>
-                        <Text style={[styles.reminderPillText, { color: theme.textMain }]}>
-                          {evt.reminderMinutes}m before
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={[styles.detailedEventTitle, { color: theme.textMain }]}>
-                    {evt.title}
-                  </Text>
-                  {evt.location ? (
-                    <Text style={[styles.detailedEventLocation, { color: theme.textMuted }]}>
-                      📍 {evt.location}
-                    </Text>
-                  ) : null}
-                </View>
-
-                <TouchableOpacity
-                  onPress={() => onDeleteEvent(evt._id, evt.title)}
-                  style={styles.deleteEventBtn}
-                  activeOpacity={0.7}
-                >
-                  <Trash2 size={14} color={theme.urgentRed} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={[styles.emptySectionText, { color: theme.textMuted }]}>
-            No events scheduled for this day
-          </Text>
-        )}
-
-        {/* Tasks for this day */}
-        <Text style={[styles.sectionSubtitle, { color: theme.textMuted, marginTop: 6 }]}>
-          Tasks ({selectedDateTasks.length})
-        </Text>
-        {selectedDateTasks.length > 0 ? (
-          <View style={styles.dayTasksList}>
-            {selectedDateTasks.map((task) => (
-              <TouchableOpacity
-                key={task._id}
-                onPress={() => onOpenTaskDetails(task)}
-                style={[styles.simpleTaskRow, { backgroundColor: theme.bgApp, borderColor: theme.border }]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.taskKeyBadge, { color: theme.textSecondary }]}>
-                  {task.key}
-                </Text>
-                <Text style={[styles.taskTitleRow, { color: theme.textMain }]} numberOfLines={1}>
-                  {task.title}
-                </Text>
-                <Text style={[styles.taskStatusMini, { color: theme.textMuted }]}>
-                  {task.status}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <Text style={[styles.emptySectionText, { color: theme.textMuted }]}>
-            No tasks scheduled for this day
-          </Text>
-        )}
-      </View>
+      </Animated.View>
 
       {/* Day Details Popup Modal (Opened on tapping any day cell) */}
       <DayDetailsModal
@@ -350,12 +329,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         onOpenTaskDetails={onOpenTaskDetails}
         onStatusChange={onStatusChange}
         onMoveTask={onMoveTask}
-        onAddTask={(d) => {
-          if (onAddTask) {
-            onAddTask(d);
-          }
-        }}
-        onAddEvent={(d) => onAddEvent(d)}
         onDeleteEvent={onDeleteEvent}
       />
 
@@ -366,20 +339,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         onClose={() => setIsSyncModalOpen(false)}
         onSyncComplete={() => {
           onRefreshEvents?.();
+          refreshCalendarLink();
         }}
       />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  contentContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 90,
+    paddingBottom: 92,
     gap: 12,
   },
   headerBox: {
@@ -459,36 +431,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
+  gridWrapper: {
+    flex: 1,
+  },
   gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flex: 1,
+    flexDirection: 'column',
     borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  cell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    padding: 3,
-    justifyContent: 'space-between',
-  },
-  cellDayHeader: {
+  weekRow: {
+    flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+  },
+  cell: {
+    flex: 1,
+    padding: 5,
     justifyContent: 'space-between',
   },
   cellDayNumber: {
-    fontSize: 11,
-  },
-  todayTag: {
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  todayTagText: {
-    fontSize: 7,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontSize: 13,
   },
   dotsRow: {
     flexDirection: 'row',
@@ -496,134 +459,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   taskDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-  },
-  selectedDayDetails: {
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    gap: 8,
-  },
-  selectedDayHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  selectedDayTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  smallAddEventBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  smallAddEventText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  sectionSubtitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  dayEventsList: {
-    gap: 6,
-  },
-  detailedEventCard: {
-    borderRadius: 8,
-    borderWidth: 1,
-    borderLeftWidth: 3,
-    padding: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  detailedEventInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  eventTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailedEventTime: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  googleBadge: {
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 3,
-  },
-  googleBadgeText: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  reminderPill: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  reminderPillText: {
-    fontSize: 9,
-    fontWeight: '600',
-  },
-  detailedEventTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  detailedEventLocation: {
-    fontSize: 10,
-  },
-  deleteEventBtn: {
-    padding: 4,
-  },
-  dayTasksList: {
-    gap: 4,
-  },
-  simpleTaskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    gap: 6,
-  },
-  taskKeyBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  taskTitleRow: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  taskStatusMini: {
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  emptySectionText: {
-    fontSize: 11,
-    fontStyle: 'italic',
-    paddingVertical: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
 });

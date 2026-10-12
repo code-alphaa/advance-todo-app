@@ -6,12 +6,11 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Text, TextInput } from './ScaledText';
-import { X, ArrowRight, FastForward } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
 import { ReminderTimesEditor } from './ReminderTimesEditor';
 import { getStatusBadgeStyle, getPriorityBadgeStyle } from '../theme/badgeColors';
-import { addDaysToDateStr, formatDateToYYYYMMDD } from '../utils/dateUtils';
-import { ITask, TaskStatus, TaskPriority, DayInfo } from '../types/index';
+import { ITask, TaskStatus, TaskPriority } from '../types/index';
 import { CenterModal } from './CenterModal';
 
 interface CreateTaskModalProps {
@@ -19,11 +18,10 @@ interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (task: Partial<ITask>) => void;
-  weekDays: DayInfo[];
   defaultDate: string;
 }
 
-const STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
+const STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
 const PRIORITIES: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
@@ -31,21 +29,18 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
-  weekDays,
   defaultDate,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>('TODO');
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
-  const [assignedDate, setAssignedDate] = useState(defaultDate);
   const [estimatedHours, setEstimatedHours] = useState('1');
   const [remindersPerDay, setRemindersPerDay] = useState<number>(0);
   const [reminderTimes, setReminderTimes] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      setAssignedDate(defaultDate);
       setTitle('');
       setDescription('');
       setStatus('TODO');
@@ -64,7 +59,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       status,
       priority,
       type: 'task',
-      assignedDate,
+      assignedDate: defaultDate,
       estimatedHours: Number(estimatedHours) || 1,
       remindersPerDay,
       reminderTimes,
@@ -72,10 +67,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     });
     onClose();
   };
-
-  const todayStr = formatDateToYYYYMMDD(new Date());
-  const tomorrowStr = addDaysToDateStr(todayStr, 1);
-  const nextWeekStr = addDaysToDateStr(todayStr, 7);
 
   return (
     <CenterModal
@@ -98,6 +89,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         style={styles.dialogBody}
         contentContainerStyle={styles.dialogBodyContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled={true}
+        bounces={true}
       >
         {/* Title */}
         <View style={styles.formGroup}>
@@ -127,89 +121,6 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
               { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border },
             ]}
           />
-        </View>
-
-        {/* Assigned Date Selector + Quick Next Day / Next Week Options */}
-        <View style={styles.formGroup}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Assigned Day</Text>
-            <View style={styles.quickMovePills}>
-              <TouchableOpacity
-                onPress={() => setAssignedDate(tomorrowStr)}
-                style={[
-                  styles.quickPill,
-                  {
-                    backgroundColor: assignedDate === tomorrowStr ? theme.accent : theme.bgApp,
-                    borderColor: assignedDate === tomorrowStr ? theme.accent : theme.border,
-                  },
-                ]}
-                activeOpacity={0.7}
-              >
-                <ArrowRight size={10} color={assignedDate === tomorrowStr ? theme.textOnAccent : theme.textSecondary} />
-                <Text
-                  style={[
-                    styles.quickPillText,
-                    { color: assignedDate === tomorrowStr ? theme.textOnAccent : theme.textSecondary },
-                  ]}
-                >
-                  Next Day
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setAssignedDate(nextWeekStr)}
-                style={[
-                  styles.quickPill,
-                  {
-                    backgroundColor: assignedDate === nextWeekStr ? theme.accent : theme.bgApp,
-                    borderColor: assignedDate === nextWeekStr ? theme.accent : theme.border,
-                  },
-                ]}
-                activeOpacity={0.7}
-              >
-                <FastForward size={10} color={assignedDate === nextWeekStr ? theme.textOnAccent : theme.textSecondary} />
-                <Text
-                  style={[
-                    styles.quickPillText,
-                    { color: assignedDate === nextWeekStr ? theme.textOnAccent : theme.textSecondary },
-                  ]}
-                >
-                  Next Week
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-            {weekDays.map((d) => {
-              const isSelected = assignedDate === d.dateString;
-              return (
-                <TouchableOpacity
-                  key={d.dateString}
-                  onPress={() => setAssignedDate(d.dateString)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: isSelected ? theme.accent : theme.bgApp,
-                      borderColor: isSelected ? theme.accent : theme.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: isSelected ? theme.textOnAccent : theme.textSecondary,
-                        fontWeight: isSelected ? '800' : '600',
-                      },
-                    ]}
-                  >
-                    {d.shortName} ({d.displayDate.split(' ')[1]})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
         </View>
 
         {/* Daily Task Reminders Setup */}
@@ -354,6 +265,7 @@ const styles = StyleSheet.create({
   },
   dialogBody: {
     paddingHorizontal: 20,
+    flexShrink: 1,
   },
   dialogBodyContent: {
     paddingVertical: 16,
@@ -361,29 +273,6 @@ const styles = StyleSheet.create({
   },
   formGroup: {
     gap: 8,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  quickMovePills: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  quickPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  quickPillText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   inputLabel: {
     fontSize: 12,
@@ -402,11 +291,6 @@ const styles = StyleSheet.create({
     minHeight: 70,
     textAlignVertical: 'top',
   },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2,
-  },
   chipsRowWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -418,8 +302,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     minHeight: 36,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   chipText: {
     fontSize: 12,
@@ -428,9 +312,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 12,
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    gap: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   cancelBtn: {
@@ -441,7 +325,7 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   submitBtn: {
     paddingHorizontal: 20,
@@ -450,6 +334,6 @@ const styles = StyleSheet.create({
   },
   submitBtnText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

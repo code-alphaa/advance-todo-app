@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { StyleSheet, View, ActivityIndicator, useColorScheme, Appearance } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, useColorScheme, Appearance, Animated, AppState } from 'react-native';
 import { Text } from './src/components/ScaledText';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +31,9 @@ import { getTaskReminderTimes, countPassedTimes } from './src/utils/reminderTime
 
 import { WeekNavigator } from './src/components/WeekNavigator';
 import { BottomNav } from './src/components/BottomNav';
+import { FloatingAddButton } from './src/components/FloatingAddButton';
+import { useTabTransition } from './src/hooks/useTabTransition';
+import { syncCalendarIfDue, startCalendarAutoSync, CALENDAR_SYNC_INTERVAL_MINUTES } from './src/services/calendarAutoSync';
 import { SingleDayView } from './src/components/SingleDayView';
 import { WeeklyBoardView } from './src/components/WeeklyBoardView';
 import { CalendarView } from './src/components/CalendarView';
@@ -69,6 +72,8 @@ export default function App() {
   const [currentWeekReference, setCurrentWeekReference] = useState<Date>(new Date());
   const [currentView, setCurrentView] = useState<'day' | 'weekly' | 'calendar'>('day');
   const [selectedDayDate, setSelectedDayDate] = useState<string>(todayDateStr);
+  // Bumped to tell the calendar view to animate back to today's month
+  const [calendarJumpSignal, setCalendarJumpSignal] = useState(0);
 
   // Data states
   const [tasks, setTasks] = useState<ITask[]>([]);
@@ -78,7 +83,6 @@ export default function App() {
     total: 0,
     done: 0,
     inProgress: 0,
-    inReview: 0,
     todo: 0,
     rolledOver: 0,
     completionRate: 0,
@@ -197,6 +201,24 @@ export default function App() {
   useEffect(() => {
     loadData();
   }, [loadData, currentWeekReference]);
+
+  // Calendar auto-sync: iOS runs the background task when it chooses, so also
+  // catch up on launch, on returning to the foreground, and every 4h while open
+  useEffect(() => {
+    const runSync = async () => {
+      if (await syncCalendarIfDue()) loadData();
+    };
+    startCalendarAutoSync();
+    runSync();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') runSync();
+    });
+    const interval = setInterval(runSync, CALENDAR_SYNC_INTERVAL_MINUTES * 60 * 1000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
+  }, [loadData]);
 
   // Periodic Reminder Engine (Every 10 seconds)
   useEffect(() => {
@@ -340,6 +362,13 @@ export default function App() {
   const handleJumpToToday = () => {
     setCurrentWeekReference(new Date());
     setSelectedDayDate(todayDateStr);
+    setCalendarJumpSignal((n) => n + 1);
+  };
+
+  // Switching tabs always snaps the view back to today's date/week
+  const handleViewChange = (view: 'day' | 'weekly' | 'calendar') => {
+    setCurrentView(view);
+    handleJumpToToday();
   };
 
   // Status Change
@@ -470,6 +499,8 @@ export default function App() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const viewTransitionStyle = useTabTransition(VIEW_ORDER.indexOf(currentView));
+
   // Avoid flashing the default theme/text size before the saved ones are restored
   if (!themeLoaded) return null;
 
@@ -498,7 +529,7 @@ export default function App() {
           )}
 
           {/* Body Views */}
-          <View style={styles.content}>
+          <Animated.View style={[styles.content, viewTransitionStyle]}>
             {loading ? (
               <View style={styles.loaderCenter}>
                 <ActivityIndicator size="large" color={theme.accent} />
@@ -564,10 +595,6 @@ export default function App() {
                   setCreateEventDate(d);
                   setIsCreateEventOpen(true);
                 }}
-                onAddTask={(d) => {
-                  setCreateTaskDate(d);
-                  setIsCreateTaskOpen(true);
-                }}
                 onMoveTask={handleMoveTask}
                 onStatusChange={handleStatusChange}
                 onDeleteEvent={(id, title) => {
@@ -578,16 +605,22 @@ export default function App() {
                   setIsDetailOpen(true);
                 }}
                 onRefreshEvents={loadData}
+                jumpToTodaySignal={calendarJumpSignal}
               />
             )}
-          </View>
+          </Animated.View>
 
           {/* Floating Bottom Navigation */}
           <BottomNav
             theme={theme}
             currentView={currentView}
-            onViewChange={setCurrentView}
-            onOpenCreate={() => {
+            onViewChange={handleViewChange}
+          />
+
+          {/* Floating Add Task Button */}
+          <FloatingAddButton
+            theme={theme}
+            onPress={() => {
               setCreateTaskDate(selectedDayDate || todayDateStr);
               setIsCreateTaskOpen(true);
             }}
@@ -599,7 +632,6 @@ export default function App() {
             isOpen={isCreateTaskOpen}
             onClose={() => setIsCreateTaskOpen(false)}
             onSubmit={handleCreateTask}
-            weekDays={weekDays}
             defaultDate={createTaskDate}
           />
 
@@ -653,6 +685,8 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const VIEW_ORDER = ['day', 'weekly', 'calendar'] as const;
 
 const styles = StyleSheet.create({
   safeArea: {

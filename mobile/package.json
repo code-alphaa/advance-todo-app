@@ -5,10 +5,12 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.27",
+    "expo-background-task": "~57.0.21",
     "expo-blur": "~57.0.3",
     "expo-notifications": "~57.0.22",
     "expo-sqlite": "~57.0.4",
     "expo-status-bar": "~57.0.1",
+    "expo-task-manager": "~57.0.21",
     "lucide-react-native": "^1.52.0",
     "react": "19.2.3",
     "react-native": "0.86.3",
@@ -22,7 +24,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "ios": "expo run:ios",
+    "ios": "expo run:ios --device \"iPhone 14\"",
     "web": "expo start --web"
   },
   "private": true

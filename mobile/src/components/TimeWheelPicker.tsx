@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -53,6 +51,8 @@ const Wheel: React.FC<WheelProps> = ({ theme, items, selectedIndex, onChange, wi
       decelerationRate="fast"
       showsVerticalScrollIndicator={false}
       onMomentumScrollEnd={handleScrollEnd}
+      nestedScrollEnabled={true}
+      keyboardShouldPersistTaps="handled"
     >
       {items.map((item, index) => {
         const isSelected = index === selectedIndex;

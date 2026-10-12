@@ -28,6 +28,9 @@ export const googleCalendarSyncService = {
   },
 
   async clearSavedIcalUrl(): Promise<void> {
+    // Lazy import avoids a circular dependency with the auto-sync module
+    const { stopCalendarAutoSync } = await import('./calendarAutoSync');
+    await stopCalendarAutoSync();
     await AsyncStorage.removeItem(ICAL_URL_STORAGE_KEY);
     await AsyncStorage.removeItem(ICAL_LAST_SYNC_KEY);
   },
@@ -162,6 +165,13 @@ export const googleCalendarSyncService = {
         throw new Error('The URL did not return a valid iCal/ICS calendar feed. Ensure you copied the Secret address in iCal format.');
       }
 
+      // The link is valid → remember it and (re)start the 4-hourly background
+      // sync right away, so the connection persists even if importing a
+      // particular event fails below.
+      await this.saveIcalUrl(url);
+      const { startCalendarAutoSync } = await import('./calendarAutoSync');
+      await startCalendarAutoSync();
+
       // 2. Parse events
       const parsedItems = this.parseICS(icsText);
       const existingEvents = await offlineStorage.getEvents();
@@ -220,7 +230,6 @@ export const googleCalendarSyncService = {
 
       const nowIso = new Date().toISOString();
       await AsyncStorage.setItem(ICAL_LAST_SYNC_KEY, nowIso);
-      await this.saveIcalUrl(url);
 
       return {
         success: true,

@@ -40,7 +40,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         <View
           style={[
             styles.iconBox,
-            { backgroundColor: isDestructive ? 'rgba(239, 68, 68, 0.15)' : theme.columnBg },
+            { backgroundColor: isDestructive ? `${theme.urgentRed}26` : theme.columnBg },
           ]}
         >
           <AlertCircle size={20} color={isDestructive ? theme.urgentRed : theme.accent} />

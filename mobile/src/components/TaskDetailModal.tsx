@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Modal,
   View,
   TouchableOpacity,
-  Pressable,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { CenterModal } from './CenterModal';
 import { Text, TextInput } from './ScaledText';
@@ -38,7 +34,7 @@ interface TaskDetailModalProps {
   weekDays: DayInfo[];
 }
 
-const STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'];
+const STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
 const PRIORITIES: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
@@ -166,9 +162,12 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             style={styles.dialogBody}
             contentContainerStyle={styles.dialogBodyContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            bounces={true}
           >
             {/* Quick Move Row: Next Day & Next Week */}
-            <View style={styles.quickShiftContainer}>
+            <View style={[styles.quickShiftContainer, { borderColor: theme.border }]}>
               <Text style={[styles.quickShiftLabel, { color: theme.textSecondary }]}>Quick Move Date:</Text>
               <View style={styles.quickShiftButtons}>
                 <TouchableOpacity
@@ -177,7 +176,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   activeOpacity={0.7}
                 >
                   <ArrowRight size={12} color={theme.accent} />
-                  <Text style={[styles.quickShiftBtnText, { color: theme.textMain }]}>Next Day (+1d)</Text>
+                  <Text style={[styles.quickShiftBtnText, { color: theme.textMain }]} numberOfLines={1} adjustsFontSizeToFit>
+                    Next Day (+1d)
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -186,7 +187,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   activeOpacity={0.7}
                 >
                   <FastForward size={12} color={theme.accent} />
-                  <Text style={[styles.quickShiftBtnText, { color: theme.textMain }]}>Next Week (+7d)</Text>
+                  <Text style={[styles.quickShiftBtnText, { color: theme.textMain }]} numberOfLines={1} adjustsFontSizeToFit>
+                    Next Week (+7d)
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -209,8 +212,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 onChangeText={setDescription}
                 multiline
                 numberOfLines={3}
-                placeholder="Add description..."
-                placeholderTextColor={theme.textMuted}
                 style={[
                   styles.input,
                   styles.textArea,
@@ -218,6 +219,27 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 ]}
               />
             </View>
+
+            {/* Daily Task Reminders Setup */}
+            <ReminderTimesEditor
+              theme={theme}
+              count={remindersPerDay}
+              times={reminderTimes}
+              onChange={(count, times) => {
+                setRemindersPerDay(count);
+                setReminderTimes(times);
+              }}
+              headerRight={
+                remindersPerDay > 0 ? (
+                  <View style={styles.passedPill}>
+                    <RotateCw size={10} color={theme.textMuted} />
+                    <Text style={[styles.passedText, { color: theme.textMuted }]}>
+                      {countPassedTimes(reminderTimes)} of {reminderTimes.length} passed today
+                    </Text>
+                  </View>
+                ) : undefined
+              }
+            />
 
             {/* Status with Distinct Colored Badges */}
             <View style={styles.formGroup}>
@@ -230,10 +252,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   return (
                     <TouchableOpacity
                       key={st}
-                      onPress={() => {
-                        setStatus(st);
-                        onUpdate(task._id, { status: st });
-                      }}
+                      onPress={() => setStatus(st)}
                       style={[
                         styles.chip,
                         {
@@ -258,33 +277,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 })}
               </View>
             </View>
-
-            {/* Daily Task Reminders */}
-            <ReminderTimesEditor
-              theme={theme}
-              count={remindersPerDay}
-              times={reminderTimes}
-              onChange={(count, times) => {
-                setRemindersPerDay(count);
-                setReminderTimes(times);
-                const todayStr = formatDateToYYYYMMDD(new Date());
-                onUpdate(task._id, {
-                  remindersPerDay: count,
-                  reminderTimes: times,
-                  remindersSentToday: countPassedTimes(times),
-                  lastReminderDate: todayStr,
-                });
-              }}
-              headerRight={
-                remindersPerDay > 0 ? (
-                  <View style={{ backgroundColor: theme.bgApp, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: theme.border }}>
-                    <Text style={{ fontSize: 10, fontWeight: '700', color: theme.accent }}>
-                      {task.remindersSentToday || 0}/{remindersPerDay} sent today
-                    </Text>
-                  </View>
-                ) : undefined
-              }
-            />
 
             {/* Priority with Distinct Colored Badges */}
             <View style={styles.formGroup}>
@@ -297,10 +289,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   return (
                     <TouchableOpacity
                       key={pr}
-                      onPress={() => {
-                        setPriority(pr);
-                        onUpdate(task._id, { priority: pr });
-                      }}
+                      onPress={() => setPriority(pr)}
                       style={[
                         styles.chip,
                         {
@@ -326,12 +315,41 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </View>
             </View>
 
+            {/* Hours: Estimated vs Logged */}
+            <View style={styles.rowTwoCols}>
+              <View style={[styles.formGroup, { flex: 1 }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Est. Hours</Text>
+                <TextInput
+                  value={estimatedHours}
+                  onChangeText={setEstimatedHours}
+                  keyboardType="numeric"
+                  style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+                />
+              </View>
+
+              <View style={[styles.formGroup, { flex: 1 }]}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Logged Hours</Text>
+                <TextInput
+                  value={loggedHours}
+                  onChangeText={setLoggedHours}
+                  keyboardType="numeric"
+                  style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+                />
+              </View>
+            </View>
+
             {/* Assigned Day (Reassign to Any Day) */}
             <View style={styles.formGroup}>
               <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>
                 Assigned Day: {assignedDate}
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chipsRow}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled={true}
+              >
                 {weekDays.map((d) => {
                   const isSelected = assignedDate === d.dateString;
                   return (
@@ -374,84 +392,85 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 </Text>
               </View>
 
-              {/* Subtasks List */}
               {subtasks.map((st) => (
-                <View key={st.id} style={[styles.subtaskRow, { borderColor: theme.border }]}>
+                <View
+                  key={st.id}
+                  style={[
+                    styles.subtaskRow,
+                    {
+                      backgroundColor: theme.bgApp,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
                   <TouchableOpacity
                     onPress={() => handleToggleSubtask(st.id)}
-                    style={styles.checkboxTouchable}
+                    style={styles.subtaskCheck}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     {st.completed ? (
-                      <CheckSquare size={16} color={theme.doneGreen} />
+                      <CheckSquare size={16} color={theme.accent} />
                     ) : (
                       <Square size={16} color={theme.textMuted} />
                     )}
-                    <Text
-                      style={[
-                        styles.subtaskTitle,
-                        { color: theme.textMain },
-                        st.completed && { textDecorationLine: 'line-through', opacity: 0.6 },
-                      ]}
-                    >
-                      {st.title}
-                    </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => handleDeleteSubtask(st.id)}>
-                    <X size={14} color={theme.textMuted} />
+                  <Text
+                    style={[
+                      styles.subtaskTitle,
+                      {
+                        color: st.completed ? theme.textMuted : theme.textMain,
+                        textDecorationLine: st.completed ? 'line-through' : 'none',
+                      },
+                    ]}
+                  >
+                    {st.title}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => handleDeleteSubtask(st.id)}
+                    style={styles.subtaskDelete}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Trash2 size={13} color={theme.urgentRed} />
                   </TouchableOpacity>
                 </View>
               ))}
 
-              {/* Add Subtask Input */}
+              {/* Add subtask input */}
               <View style={styles.addSubtaskRow}>
                 <TextInput
-                  placeholder="Add a new subtask..."
+                  placeholder="Add a checklist item..."
                   placeholderTextColor={theme.textMuted}
                   value={newSubtaskTitle}
                   onChangeText={setNewSubtaskTitle}
                   onSubmitEditing={handleAddSubtask}
-                  style={[styles.input, { flex: 1, color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
+                  returnKeyType="done"
+                  style={[
+                    styles.input,
+                    styles.subtaskInput,
+                    { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border },
+                  ]}
                 />
                 <TouchableOpacity
                   onPress={handleAddSubtask}
-                  style={[styles.addSubtaskBtn, { backgroundColor: theme.accent }]}
+                  disabled={!newSubtaskTitle.trim()}
+                  style={[
+                    styles.addSubtaskBtn,
+                    {
+                      backgroundColor: newSubtaskTitle.trim() ? theme.accent : theme.columnBg,
+                    },
+                  ]}
                 >
-                  <Plus size={16} color={theme.textOnAccent} />
+                  <Plus size={16} color={newSubtaskTitle.trim() ? theme.textOnAccent : theme.textMuted} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Time Tracking */}
-            <View style={styles.rowTwoCols}>
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Estimated (hrs)</Text>
-                <TextInput
-                  value={estimatedHours}
-                  onChangeText={setEstimatedHours}
-                  keyboardType="numeric"
-                  style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-                />
-              </View>
-
-              <View style={[styles.formGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Logged (hrs)</Text>
-                <TextInput
-                  value={loggedHours}
-                  onChangeText={setLoggedHours}
-                  keyboardType="numeric"
-                  style={[styles.input, { color: theme.textMain, backgroundColor: theme.bgApp, borderColor: theme.border }]}
-                />
-              </View>
-            </View>
-
-            {/* Rollover Audit History */}
+            {/* Audit History / Rollover Reason */}
             {task.rolloverHistory && task.rolloverHistory.length > 0 && (
-              <View style={[styles.auditBox, { backgroundColor: theme.bgApp, borderColor: theme.border }]}>
-                <View style={styles.auditHeader}>
-                  <RotateCw size={12} color={theme.urgentRed} />
-                  <Text style={[styles.auditTitle, { color: theme.textMain }]}>Rollover & History Audit</Text>
-                </View>
+              <View style={styles.formGroup}>
+                <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>Activity History</Text>
                 {task.rolloverHistory.map((h, i) => (
                   <View key={i} style={styles.auditItem}>
                     <Text style={[styles.auditText, { color: theme.textMuted }]}>
@@ -526,19 +545,18 @@ const styles = StyleSheet.create({
   },
   dialogBody: {
     paddingHorizontal: 20,
+    flexShrink: 1,
   },
   dialogBodyContent: {
     paddingVertical: 14,
     gap: 14,
   },
+  // Label stacked above two equal-width buttons so it fits narrow phone screens
   quickShiftContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(239, 211, 149, 0.2)',
   },
   quickShiftLabel: {
     fontSize: 11,
@@ -551,11 +569,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   quickShiftBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
@@ -564,10 +584,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   formGroup: {
-    gap: 8,
+    gap: 6,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -576,122 +596,116 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    paddingVertical: 9,
+    fontSize: 13,
   },
   textArea: {
     minHeight: 65,
     textAlignVertical: 'top',
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2,
   },
   chipsRowWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
   },
+  chipsRow: {
+    gap: 6,
+  },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     borderWidth: 1,
-    minHeight: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   chipText: {
-    fontSize: 12,
+    fontSize: 11,
+  },
+  rowTwoCols: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  passedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  passedText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   subtaskHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   subtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
   },
-  checkboxTouchable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
+  subtaskCheck: {
+    padding: 2,
   },
   subtaskTitle: {
-    fontSize: 13,
     flex: 1,
+    fontSize: 12,
+  },
+  subtaskDelete: {
+    padding: 2,
   },
   addSubtaskRow: {
     flexDirection: 'row',
     gap: 8,
     alignItems: 'center',
-    marginTop: 6,
+  },
+  subtaskInput: {
+    flex: 1,
+    paddingVertical: 7,
   },
   addSubtaskBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowTwoCols: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  auditBox: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
-    gap: 6,
-  },
-  auditHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  auditTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
   auditItem: {
-    paddingLeft: 4,
+    paddingVertical: 2,
   },
   auditText: {
     fontSize: 11,
+    fontStyle: 'italic',
   },
   dialogFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 14,
+    gap: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   cancelBtn: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
   },
   cancelBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
   },
   saveBtn: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 10,
   },
   saveBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
