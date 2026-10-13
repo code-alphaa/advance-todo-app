@@ -18,6 +18,8 @@ export function formatFriendlyDate(dateString: string): string {
   });
 }
 
+export const formatDisplayDate = formatFriendlyDate;
+
 export function formatMonthYear(d: Date): string {
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }

@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   actionText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
   },
   body: {
@@ -302,17 +302,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   notifTitle: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: '700',
     flex: 1,
   },
   notifTime: {
-    fontSize: 10,
+    fontSize: 11,
     fontVariant: ['tabular-nums'],
   },
   notifMessage: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 12.5,
+    lineHeight: 17,
   },
   emptyContainer: {
     paddingVertical: 28,
@@ -321,6 +321,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    fontSize: 12,
+    fontSize: 13,
   },
 });

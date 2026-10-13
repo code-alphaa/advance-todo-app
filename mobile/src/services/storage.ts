@@ -91,7 +91,7 @@ export const offlineStorage = {
 
       const newTask: ITask = {
         _id: `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        key,
+        key: `TODO-${seq}`,
         title: (data.title || '').trim(),
         description: data.description || '',
         status: data.status || 'TODO',
@@ -236,6 +236,9 @@ export const offlineStorage = {
         color: data.color || '#F62440',
         location: data.location || '',
         isNotified: false,
+        googleEventId: data.googleEventId,
+        outlookEventId: data.outlookEventId,
+        source: data.source || 'manual',
         createdAt: new Date().toISOString(),
       };
 
@@ -268,6 +271,19 @@ export const offlineStorage = {
     } catch (e) {
       console.error('Failed to delete event:', e);
       return false;
+    }
+  },
+
+  async deleteEventsBySource(source: 'google' | 'outlook'): Promise<number> {
+    try {
+      let events = await this.getEvents();
+      const initialCount = events.length;
+      events = events.filter((e) => e.source !== source);
+      await AsyncStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
+      return initialCount - events.length;
+    } catch (e) {
+      console.error(`Failed to delete events for source ${source}:`, e);
+      return 0;
     }
   },
 

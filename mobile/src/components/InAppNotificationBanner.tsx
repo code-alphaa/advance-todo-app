@@ -108,7 +108,7 @@ export const InAppNotificationBanner: React.FC<InAppNotificationBannerProps> = (
             style={StyleSheet.absoluteFill}
           />
           <View style={[styles.iconDot, { backgroundColor: theme.accent }]}>
-            <Bell size={10} color={theme.textOnAccent} strokeWidth={2.6} />
+            <Bell size={11} color={theme.textOnAccent} strokeWidth={2.6} />
           </View>
           <Text style={[styles.text, { color: theme.textMain }]} numberOfLines={1}>
             <Text style={styles.title}>{banner.title}</Text>
@@ -141,24 +141,24 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingLeft: 6,
-    paddingRight: 14,
-    paddingVertical: 6,
+    gap: 8,
+    paddingLeft: 8,
+    paddingRight: 16,
+    paddingVertical: 7.5,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   iconDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
     flexShrink: 1,
-    fontSize: 11.5,
+    fontSize: 13.5,
   },
   title: {
     fontWeight: '700',

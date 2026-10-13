@@ -2,8 +2,8 @@ import React from 'react';
 import {
   View,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { CenterModal } from './CenterModal';
 import { Text } from './ScaledText';
@@ -11,15 +11,13 @@ import {
   X,
   Clock,
   Trash2,
-  Calendar as CalIcon,
   CheckSquare,
   ArrowRight,
   FastForward,
 } from 'lucide-react-native';
 import { ThemeColors } from '../theme/colors';
-import { getStatusBadgeStyle, getPriorityBadgeStyle } from '../theme/badgeColors';
-import { formatFriendlyDate } from '../utils/dateUtils';
-import { ITask, IEvent, TaskStatus } from '../types/index';
+import { IEvent, ITask, TaskStatus, TaskPriority } from '../types/index';
+import { formatDisplayDate } from '../utils/dateUtils';
 
 interface DayDetailsModalProps {
   theme: ThemeColors;
@@ -48,43 +46,63 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
   onMoveTask,
   onDeleteEvent,
 }) => {
-  const isToday = dateStr === todayDateStr;
+  const getPriorityStyle = (priority: TaskPriority) => {
+    switch (priority) {
+      case 'URGENT':
+        return { bg: theme.urgentRed, text: '#FFFFFF', label: 'Urgent' };
+      case 'HIGH':
+        return { bg: '#FF9800', text: '#FFFFFF', label: 'High' };
+      case 'MEDIUM':
+        return { bg: '#2196F3', text: '#FFFFFF', label: 'Medium' };
+      case 'LOW':
+      default:
+        return { bg: '#9E9E9E', text: '#FFFFFF', label: 'Low' };
+    }
+  };
+
+  const getStatusStyle = (status: TaskStatus) => {
+    switch (status) {
+      case 'DONE':
+        return { bg: theme.doneGreen, text: '#FFFFFF', label: 'Done' };
+      case 'IN_PROGRESS':
+        return { bg: theme.inProgressBlue, text: '#FFFFFF', label: 'In Progress' };
+      case 'TODO':
+      default:
+        return { bg: theme.chipBg, text: theme.textSecondary, label: 'To Do' };
+    }
+  };
 
   return (
     <CenterModal
       theme={theme}
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth={460}
+      maxWidth={480}
       maxHeight="85%"
     >
           {/* Header */}
           <View style={[styles.dialogHeader, { borderBottomColor: theme.border }]}>
-            <View style={styles.headerTitleRow}>
-              <CalIcon size={16} color={theme.accent} />
+            <View>
               <Text style={[styles.dialogTitle, { color: theme.textMain }]}>
-                {formatFriendlyDate(dateStr)}
+                {formatDisplayDate(dateStr)}
               </Text>
-              {isToday && (
-                <View style={[styles.todayTag, { backgroundColor: theme.accent }]}>
-                  <Text style={[styles.todayTagText, { color: theme.textOnAccent }]}>TODAY</Text>
-                </View>
+              {dateStr === todayDateStr && (
+                <Text style={[styles.todayBadgeText, { color: theme.accent }]}>Today</Text>
               )}
             </View>
-
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <X size={24} color={theme.textMain} strokeWidth={2.4} />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.closeBtn, { borderColor: theme.border }]}
+              activeOpacity={0.7}
+            >
+              <X size={24} color={theme.textMain} strokeWidth={2.4} />
+            </TouchableOpacity>
           </View>
 
-          {/* Body */}
           <ScrollView
-            style={styles.dialogBody}
-            contentContainerStyle={styles.dialogBodyContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            style={styles.dialogScrollArea}
+            contentContainerStyle={styles.dialogScrollContent}
             nestedScrollEnabled={true}
             bounces={true}
           >
@@ -98,10 +116,11 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
             {tasks.length > 0 ? (
               <View style={styles.tasksList}>
                 {tasks.map((task) => {
-                  const statusStyle = getStatusBadgeStyle(task.status, theme, true);
-                  const priorityStyle = getPriorityBadgeStyle(task.priority, theme, true);
+                  const priorityStyle = getPriorityStyle(task.priority);
+                  const statusStyle = getStatusStyle(task.status);
                   const isDone = task.status === 'DONE';
-                  const completedSubtasks = task.subtasks ? task.subtasks.filter((s) => s.completed).length : 0;
+                  const completedSubtasks =
+                    task.subtasks?.filter((s) => s.completed).length || 0;
 
                   return (
                     <TouchableOpacity
@@ -242,9 +261,21 @@ export const DayDetailsModal: React.FC<DayDetailsModalProps> = ({
                     ]}
                   >
                     <View style={styles.eventInfo}>
-                      <Text style={[styles.eventTitle, { color: theme.textMain }]} numberOfLines={1}>
-                        {evt.title}
-                      </Text>
+                      <View style={styles.eventTitleRow}>
+                        <Text style={[styles.eventTitle, { color: theme.textMain }]} numberOfLines={1}>
+                          {evt.title}
+                        </Text>
+                        {evt.source === 'google' && (
+                          <View style={[styles.sourceBadge, { backgroundColor: '#4285F422', borderColor: '#4285F4' }]}>
+                            <Text style={[styles.sourceBadgeText, { color: '#4285F4' }]}>Google</Text>
+                          </View>
+                        )}
+                        {evt.source === 'outlook' && (
+                          <View style={[styles.sourceBadge, { backgroundColor: '#0078D422', borderColor: '#0078D4' }]}>
+                            <Text style={[styles.sourceBadgeText, { color: '#0078D4' }]}>Outlook</Text>
+                          </View>
+                        )}
+                      </View>
                       <View style={styles.eventTimeRow}>
                         <Clock size={11} color={theme.textMuted} />
                         <Text style={[styles.eventTime, { color: theme.textSecondary }]}>
@@ -290,43 +321,25 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   dialogTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
   },
-  todayTag: {
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  todayTagText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  todayBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
   },
   closeBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 2,
+    padding: 6,
+    borderRadius: 8,
+    borderWidth: 1,
   },
-  dialogBody: {
+  dialogScrollArea: {
+    maxHeight: 460,
+  },
+  dialogScrollContent: {
     paddingHorizontal: 16,
-    flexShrink: 1,
-  },
-  dialogBodyContent: {
     paddingVertical: 14,
     gap: 10,
   },
@@ -437,9 +450,25 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  eventTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   eventTitle: {
     fontSize: 13,
     fontWeight: '700',
+    flexShrink: 1,
+  },
+  sourceBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    borderWidth: 0.5,
+  },
+  sourceBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
   eventTimeRow: {
     flexDirection: 'row',

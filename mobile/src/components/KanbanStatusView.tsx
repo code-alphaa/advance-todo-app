@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Text } from './ScaledText';
 import { ThemeColors } from '../theme/colors';
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
   columnsContainer: {
     paddingHorizontal: 16,
     paddingTop: 4,
-    paddingBottom: 170,
+    paddingBottom: Platform.OS === 'ios' ? 88 : 78,
     gap: 12,
   },
   column: {

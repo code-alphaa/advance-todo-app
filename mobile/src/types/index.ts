@@ -54,8 +54,16 @@ export interface IEvent {
   location?: string;
   isNotified: boolean;
   googleEventId?: string;
-  source?: 'google' | 'manual';
+  outlookEventId?: string;
+  source?: 'google' | 'outlook' | 'manual';
   createdAt: string;
+}
+
+export interface ICalendarDay {
+  date: string; // YYYY-MM-DD
+  dayOfWeek: string; // 'MON', 'TUE', ...
+  dayNumber: number; // 1..31
+  isToday: boolean;
 }
 
 export type NoteColorId = 'default' | 'amber' | 'emerald' | 'cyan' | 'purple' | 'rose';
@@ -64,11 +72,11 @@ export interface INote {
   _id: string;
   title: string;
   content: string;
-  color?: NoteColorId;
-  isPinned: boolean;
-  isArchived?: boolean;
-  isLocked?: boolean;
-  media?: string[];
+  color?: NoteColorId; // Key of NOTE_COLORS, default 'default'
+  media?: string[]; // Array of local file URIs for attached images / docs
+  isLocked?: boolean; // Protected by device passkey / custom password
+  isPinned?: boolean; // Stays at top of list
+  isArchived?: boolean; // Moved to archived section
   createdAt: string;
   updatedAt: string;
 }

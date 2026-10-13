@@ -27,12 +27,16 @@ export const googleCalendarSyncService = {
     await AsyncStorage.setItem(ICAL_URL_STORAGE_KEY, url.trim());
   },
 
-  async clearSavedIcalUrl(): Promise<void> {
-    // Lazy import avoids a circular dependency with the auto-sync module
-    const { stopCalendarAutoSync } = await import('./calendarAutoSync');
-    await stopCalendarAutoSync();
+  async clearSavedIcalUrl(deleteSyncedEvents: boolean = true): Promise<void> {
+    if (deleteSyncedEvents) {
+      await offlineStorage.deleteEventsBySource('google');
+    }
     await AsyncStorage.removeItem(ICAL_URL_STORAGE_KEY);
     await AsyncStorage.removeItem(ICAL_LAST_SYNC_KEY);
+
+    // Stop auto-sync only if Outlook Calendar is also not configured
+    const { stopCalendarAutoSyncIfNoneActive } = await import('./calendarAutoSync');
+    await stopCalendarAutoSyncIfNoneActive();
   },
 
   async getLastSyncTime(): Promise<string | null> {
@@ -72,7 +76,7 @@ export const googleCalendarSyncService = {
     }
 
     // Format 3: Local or timezone offset (YYYYMMDDTHHMMSS)
-    const match = clean.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+    const match = clean.match(/(\d{4})(\d{2})(\d{2})T(\\d{2})(\\d{2})/);
     if (match) {
       return {
         eventDate: `${match[1]}-${match[2]}-${match[3]}`,
@@ -110,7 +114,7 @@ export const googleCalendarSyncService = {
         if (current.summary || current.dtstart) {
           items.push(current);
         }
-      } else if (inEvent) {
+      } else if (line === 'IN_EVENT' || inEvent) {
         const colonIdx = line.indexOf(':');
         if (colonIdx === -1) continue;
         const fullKey = line.substring(0, colonIdx);
@@ -165,9 +169,7 @@ export const googleCalendarSyncService = {
         throw new Error('The URL did not return a valid iCal/ICS calendar feed. Ensure you copied the Secret address in iCal format.');
       }
 
-      // The link is valid → remember it and (re)start the 4-hourly background
-      // sync right away, so the connection persists even if importing a
-      // particular event fails below.
+      // Save URL and ensure background auto sync is running
       await this.saveIcalUrl(url);
       const { startCalendarAutoSync } = await import('./calendarAutoSync');
       await startCalendarAutoSync();
@@ -191,9 +193,14 @@ export const googleCalendarSyncService = {
         const location = (item.location || '').trim();
         const uid = item.uid || `${eventDate}_${startTime}_${title}`;
 
-        // Find existing match by googleEventId or (eventDate + startTime + title)
+        // Find existing match by googleEventId or (eventDate + startTime + title) for google source
         const matchIndex = existingEvents.findIndex(
-          (e) => e.googleEventId === uid || (e.eventDate === eventDate && e.startTime === startTime && e.title === title)
+          (e) =>
+            (e.googleEventId === uid && e.source === 'google') ||
+            (e.eventDate === eventDate &&
+              e.startTime === startTime &&
+              e.title === title &&
+              e.source === 'google')
         );
 
         if (matchIndex >= 0) {

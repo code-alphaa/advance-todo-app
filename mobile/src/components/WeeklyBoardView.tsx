@@ -4,6 +4,7 @@ import {
   ScrollView,
   StyleSheet,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Text } from './ScaledText';
 import { Calendar, Clock, AlertCircle } from 'lucide-react-native';
@@ -53,6 +54,7 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
   return (
     <ScrollView
       ref={boardRef}
+      style={styles.boardScroll}
       horizontal
       pagingEnabled={false}
       showsHorizontalScrollIndicator={false}
@@ -166,10 +168,13 @@ export const WeeklyBoardView: React.FC<WeeklyBoardViewProps> = ({
 };
 
 const styles = StyleSheet.create({
+  boardScroll: {
+    flex: 1,
+  },
   boardContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 170,
+    paddingBottom: Platform.OS === 'ios' ? 88 : 78,
     gap: 12,
   },
   column: {
@@ -235,7 +240,7 @@ const styles = StyleSheet.create({
   columnBodyContent: {
     padding: 10,
     gap: 8,
-    paddingBottom: 20,
+    paddingBottom: 28,
   },
   eventsBlock: {
     gap: 4,
@@ -250,22 +255,18 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   eventPillText: {
-    color: '#FFF',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#FFF',
     flex: 1,
   },
   emptyColBox: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderStyle: 'dashed',
     paddingVertical: 32,
-    paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   emptyColText: {
     fontSize: 12,
+    fontStyle: 'italic',
   },
 });
